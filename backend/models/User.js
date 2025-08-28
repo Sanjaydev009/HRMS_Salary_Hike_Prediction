@@ -53,6 +53,27 @@ const userSchema = new mongoose.Schema({
     profilePicture: {
       type: String,
       default: null
+    },
+    bankDetails: {
+      accountHolderName: String,
+      bankName: String,
+      accountNumber: String,
+      routingNumber: String,
+      accountType: {
+        type: String,
+        enum: ['checking', 'savings'],
+        default: 'checking'
+      },
+      branchCode: String,
+      swiftCode: String,
+      isVerified: {
+        type: Boolean,
+        default: false
+      },
+      lastUpdated: {
+        type: Date,
+        default: Date.now
+      }
     }
   },
   jobDetails: {
@@ -105,9 +126,9 @@ const userSchema = new mongoose.Schema({
       type: Number,
       default: 10
     },
-    personal: {
+    casual: {
       type: Number,
-      default: 5
+      default: 7
     },
     maternity: {
       type: Number,

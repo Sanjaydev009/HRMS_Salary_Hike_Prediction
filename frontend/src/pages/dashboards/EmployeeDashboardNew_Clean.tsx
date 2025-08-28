@@ -8,12 +8,17 @@ import {
   CardContent,
   Typography,
   Avatar,
+  Chip,
   Stack,
   Button,
   useTheme,
   Alert,
   CircularProgress,
   LinearProgress,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -22,20 +27,31 @@ import {
   MenuItem,
   Snackbar,
   IconButton,
+  Divider,
   Paper,
 } from '@mui/material';
 import {
   Person as PersonIcon,
   EventNote,
   Payment as PaymentIcon,
+  Assessment,
   Schedule,
   CheckCircle,
+  Warning,
+  Info,
+  Receipt,
   School,
+  Star,
+  Timer,
+  MonetizationOn,
   Refresh,
+  Edit,
   RequestPage,
+  Login as CheckIn,
   Pending as PendingIcon,
   TrendingUp as TrendingUpIcon,
   PhotoCamera,
+  Upload,
   Cancel,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -467,6 +483,16 @@ const EmployeeDashboardNew: React.FC = () => {
   if (!dashboardData) {
     return <Alert severity="warning" sx={{ m: 2 }}>No data available</Alert>;
   }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'present': return theme.palette.success.main;
+      case 'late': return theme.palette.warning.main;
+      case 'absent': return theme.palette.error.main;
+      case 'wfh': return theme.palette.info.main;
+      default: return theme.palette.grey[500];
+    }
+  };
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 

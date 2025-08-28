@@ -55,6 +55,7 @@ export const getCurrentUser = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await authService.getCurrentUser();
+      // Backend returns {success: true, data: {user}}, so we need response.data.user
       return response.data.user;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to get user');
