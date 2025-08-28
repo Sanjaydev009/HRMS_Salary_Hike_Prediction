@@ -103,7 +103,7 @@ const LeaveManagement: React.FC = () => {
   // Fetch leave balances from API
   const fetchLeaveBalances = async () => {
     try {
-      const response = await fetch('/api/leave/balances', {
+      const response = await fetch('/api/leaves/balance/me', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -130,7 +130,7 @@ const LeaveManagement: React.FC = () => {
   // Fetch leave requests from API
   const fetchLeaveRequests = async () => {
     try {
-      const response = await fetch('/api/leave/requests', {
+      const response = await fetch('/api/leaves', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -200,14 +200,14 @@ const LeaveManagement: React.FC = () => {
 
   const handleApproveRequest = async (id: string) => {
     try {
-      const response = await fetch(`/api/leave/requests/${id}/approve`, {
-        method: 'POST',
+      const response = await fetch(`/api/leaves/${id}/approve`, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          approvedBy: localStorage.getItem('userName') || 'Manager',
+          status: 'approved',
         }),
       });
 
@@ -226,14 +226,15 @@ const LeaveManagement: React.FC = () => {
 
   const handleRejectRequest = async (id: string) => {
     try {
-      const response = await fetch(`/api/leave/requests/${id}/reject`, {
-        method: 'POST',
+      const response = await fetch(`/api/leaves/${id}/approve`, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          rejectedBy: localStorage.getItem('userName') || 'Manager',
+          status: 'rejected',
+          rejectionReason: 'Request rejected by manager',
         }),
       });
 
@@ -252,7 +253,7 @@ const LeaveManagement: React.FC = () => {
 
   const handleSaveRequest = async (request: Omit<LeaveRequest, 'id'>) => {
     try {
-      const response = await fetch('/api/leave/requests', {
+      const response = await fetch('/api/leaves', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

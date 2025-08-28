@@ -58,6 +58,100 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/payroll/my
+// @desc    Get current employee's payroll records with summary
+// @access  Private (Employee only)
+router.get('/my', auth, async (req, res) => {
+  try {
+    const { month, year, page = 1, limit = 12 } = req.query;
+    
+    let query = { employeeId: req.user._id };
+    
+    // Apply filters
+    if (month) query['payPeriod.month'] = parseInt(month);
+    if (year) query['payPeriod.year'] = parseInt(year);
+
+    const payrollRecords = await Payroll.find(query)
+      .populate('generatedBy', 'profile.firstName profile.lastName')
+      .populate('approvedBy', 'profile.firstName profile.lastName')
+      .sort({ 'payPeriod.year': -1, 'payPeriod.month': -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Payroll.countDocuments(query);
+
+    // Get current year's summary
+    const currentYear = new Date().getFullYear();
+    const yearlyPayroll = await Payroll.find({
+      employeeId: req.user._id,
+      'payPeriod.year': currentYear
+    });
+
+    // Calculate yearly summary
+    const yearlyEarnings = {
+      totalGross: 0,
+      totalNet: 0,
+      totalDeductions: 0,
+      totalAllowances: 0,
+      totalTax: 0,
+      totalBonus: 0,
+      totalOvertime: 0
+    };
+
+    yearlyPayroll.forEach(record => {
+      yearlyEarnings.totalGross += record.salary.grossSalary || 0;
+      yearlyEarnings.totalNet += record.salary.netSalary || 0;
+      yearlyEarnings.totalDeductions += record.deductions.total || 0;
+      yearlyEarnings.totalAllowances += record.allowances.total || 0;
+      yearlyEarnings.totalTax += (record.deductions.tax || 0);
+      yearlyEarnings.totalBonus += (record.allowances.bonus || 0);
+      yearlyEarnings.totalOvertime += (record.allowances.overtime || 0);
+    });
+
+    // Get latest payslip for quick access
+    const latestPayslip = payrollRecords.length > 0 ? payrollRecords[0] : null;
+
+    // Calculate average monthly salary
+    const avgMonthlySalary = yearlyPayroll.length > 0 
+      ? Math.round(yearlyEarnings.totalNet / yearlyPayroll.length)
+      : 0;
+
+    const summary = {
+      currentYear,
+      totalPayslips: total,
+      yearlyEarnings,
+      avgMonthlySalary,
+      latestPayslip: latestPayslip ? {
+        month: latestPayslip.payPeriod.month,
+        year: latestPayslip.payPeriod.year,
+        netSalary: latestPayslip.salary.netSalary,
+        status: latestPayslip.paymentDetails.status,
+        payDate: latestPayslip.paymentDetails.paidDate
+      } : null
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        payrollRecords,
+        summary,
+        pagination: {
+          current: parseInt(page),
+          pages: Math.ceil(total / limit),
+          total
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get my payroll error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
 // @route   POST /api/payroll/generate
 // @desc    Generate payroll for a specific month/year
 // @access  Private (HR/Admin)

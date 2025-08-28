@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm run dev\"",
+    "start": "concurrently \"cd backend && npm start\" \"cd frontend && npm run build && serve -s frontend/build\"",
+    "backend": "cd backend && npm run dev",
+    "frontend": "cd frontend && npm run dev",
+    "ml": "cd ml-module && python main.py",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ../ml-module && pip install -r requirements.txt",
+    "build": "cd frontend && npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -18,10 +25,12 @@
     "@mui/x-date-pickers": "^8.9.0",
     "@reduxjs/toolkit": "^2.8.2",
     "axios": "^1.11.0",
-    "concurrently": "^9.2.0",
     "date-fns": "^4.1.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.7.1",
     "recharts": "^3.1.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

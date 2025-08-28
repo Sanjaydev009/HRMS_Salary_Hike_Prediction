@@ -145,4 +145,266 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/profile/emergency-contacts
+// @desc    Get user's emergency contacts
+// @access  Private
+router.get('/emergency-contacts', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('emergencyContact');
+    
+    res.json({
+      success: true,
+      data: {
+        emergencyContact: user.emergencyContact || null
+      }
+    });
+  } catch (error) {
+    console.error('Get emergency contacts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching emergency contacts',
+      error: error.message
+    });
+  }
+});
+
+// @route   PUT /api/profile/emergency-contacts
+// @desc    Update user's emergency contacts
+// @access  Private
+router.put('/emergency-contacts', auth, async (req, res) => {
+  try {
+    const { name, relationship, phone, email } = req.body;
+
+    if (!name || !relationship || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, relationship, and phone are required'
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        emergencyContact: {
+          name,
+          relationship,
+          phone,
+          email: email || ''
+        }
+      },
+      { new: true }
+    ).select('emergencyContact');
+
+    res.json({
+      success: true,
+      message: 'Emergency contact updated successfully',
+      data: {
+        emergencyContact: user.emergencyContact
+      }
+    });
+  } catch (error) {
+    console.error('Update emergency contacts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating emergency contacts',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/profile/documents
+// @desc    Get user's documents
+// @access  Private
+router.get('/documents', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('documents');
+    
+    res.json({
+      success: true,
+      data: {
+        documents: user.documents || []
+      }
+    });
+  } catch (error) {
+    console.error('Get documents error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching documents',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/profile/documents
+// @desc    Upload a new document
+// @access  Private
+router.post('/documents', auth, upload.single('document'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const { type, name } = req.body;
+
+    if (!type || !name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Document type and name are required'
+      });
+    }
+
+    const documentData = {
+      type,
+      name,
+      url: `/uploads/profiles/${req.file.filename}`,
+      uploadDate: new Date()
+    };
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $push: {
+          documents: documentData
+        }
+      },
+      { new: true }
+    ).select('documents');
+
+    res.json({
+      success: true,
+      message: 'Document uploaded successfully',
+      data: {
+        document: documentData,
+        documents: user.documents
+      }
+    });
+  } catch (error) {
+    console.error('Upload document error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading document',
+      error: error.message
+    });
+  }
+});
+
+// @route   DELETE /api/profile/documents/:documentId
+// @desc    Delete a document
+// @access  Private
+router.delete('/documents/:documentId', auth, async (req, res) => {
+  try {
+    const { documentId } = req.params;
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $pull: {
+          documents: { _id: documentId }
+        }
+      },
+      { new: true }
+    ).select('documents');
+
+    res.json({
+      success: true,
+      message: 'Document deleted successfully',
+      data: {
+        documents: user.documents
+      }
+    });
+  } catch (error) {
+    console.error('Delete document error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting document',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/profile/bank-details
+// @desc    Get user's bank details
+// @access  Private
+router.get('/bank-details', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('profile.bankDetails');
+    
+    res.json({
+      success: true,
+      data: {
+        bankDetails: user.profile?.bankDetails || null
+      }
+    });
+  } catch (error) {
+    console.error('Get bank details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching bank details',
+      error: error.message
+    });
+  }
+});
+
+// @route   PUT /api/profile/bank-details
+// @desc    Update user's bank details
+// @access  Private
+router.put('/bank-details', auth, async (req, res) => {
+  try {
+    const {
+      accountHolderName,
+      bankName,
+      accountNumber,
+      routingNumber,
+      accountType,
+      branchCode,
+      swiftCode
+    } = req.body;
+
+    if (!accountHolderName || !bankName || !accountNumber || !routingNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Account holder name, bank name, account number, and routing number are required'
+      });
+    }
+
+    const bankDetails = {
+      accountHolderName,
+      bankName,
+      accountNumber,
+      routingNumber,
+      accountType: accountType || 'checking',
+      branchCode: branchCode || '',
+      swiftCode: swiftCode || '',
+      isVerified: false, // Always set to false when updating
+      lastUpdated: new Date()
+    };
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        'profile.bankDetails': bankDetails
+      },
+      { new: true }
+    ).select('profile.bankDetails');
+
+    res.json({
+      success: true,
+      message: 'Bank details updated successfully',
+      data: {
+        bankDetails: user.profile.bankDetails
+      }
+    });
+  } catch (error) {
+    console.error('Update bank details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating bank details',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
