@@ -266,4 +266,280 @@ router.get('/summary', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/attendance
+// @desc    Get all attendance records (for HR/Admin)
+// @access  Private (HR/Admin)
+router.get('/', auth, async (req, res) => {
+  try {
+    // Check if user has permission to view all attendance
+    if (!['hr', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. HR or Admin role required.'
+      });
+    }
+
+    const { 
+      department, 
+      status, 
+      employee, 
+      dateFrom, 
+      dateTo, 
+      page = 1, 
+      limit = 10 
+    } = req.query;
+
+    // Build filter query
+    let matchFilter = {};
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      matchFilter.date = {};
+      if (dateFrom) matchFilter.date.$gte = new Date(dateFrom);
+      if (dateTo) matchFilter.date.$lte = new Date(dateTo);
+    }
+
+    // Status filter
+    if (status) {
+      matchFilter.status = status;
+    }
+
+    // Employee filter
+    if (employee) {
+      matchFilter.employeeId = employee;
+    }
+
+    // Build aggregation pipeline
+    const pipeline = [
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'employeeId',
+          foreignField: '_id',
+          as: 'employee'
+        }
+      },
+      {
+        $unwind: '$employee'
+      },
+      {
+        $match: {
+          'employee.role': { $in: ['employee'] },
+          'employee.status': 'active',
+          ...matchFilter
+        }
+      }
+    ];
+
+    // Department filter (applied after lookup)
+    if (department) {
+      pipeline.push({
+        $match: {
+          'employee.jobDetails.department': department
+        }
+      });
+    }
+
+    // Add projection and sorting
+    pipeline.push(
+      {
+        $project: {
+          _id: 1,
+          date: 1,
+          checkIn: 1,
+          checkOut: 1,
+          status: 1,
+          workingHours: 1,
+          overtime: 1,
+          notes: 1,
+          location: 1,
+          employee: {
+            _id: '$employee._id',
+            firstName: '$employee.profile.firstName',
+            lastName: '$employee.profile.lastName',
+            email: '$employee.email',
+            department: '$employee.jobDetails.department',
+            position: '$employee.jobDetails.designation'
+          }
+        }
+      },
+      {
+        $sort: { date: -1 }
+      }
+    );
+
+    // Execute aggregation with pagination
+    const skip = (page - 1) * limit;
+    const totalPipeline = [...pipeline, { $count: 'total' }];
+    const dataPipeline = [...pipeline, { $skip: skip }, { $limit: parseInt(limit) }];
+
+    const [totalResult, attendanceRecords] = await Promise.all([
+      Attendance.aggregate(totalPipeline),
+      Attendance.aggregate(dataPipeline)
+    ]);
+
+    const total = totalResult.length > 0 ? totalResult[0].total : 0;
+
+    res.json({
+      success: true,
+      attendance: attendanceRecords,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1
+      },
+      filters: {
+        department,
+        status,
+        employee,
+        dateFrom,
+        dateTo
+      },
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Get all attendance error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching attendance records',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/attendance/stats
+// @desc    Get attendance statistics for HR/Admin dashboard
+// @access  Private (HR/Admin)
+router.get('/stats', auth, async (req, res) => {
+  try {
+    // Check if user has permission
+    if (!['hr', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. HR or Admin role required.'
+      });
+    }
+
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+
+    // Get total active employees
+    const totalEmployees = await User.countDocuments({
+      role: { $in: ['employee'] },
+      status: 'active'
+    });
+
+    // Get today's attendance statistics
+    const todayStats = await Attendance.aggregate([
+      {
+        $match: {
+          date: { $gte: startOfToday, $lt: endOfToday }
+        }
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Process today's stats
+    const statsMap = todayStats.reduce((acc, stat) => {
+      acc[stat._id.toLowerCase()] = stat.count;
+      return acc;
+    }, {});
+
+    const presentToday = (statsMap.present || 0) + (statsMap.late || 0) + (statsMap['half-day'] || 0);
+    const absentToday = totalEmployees - presentToday;
+    const lateToday = statsMap.late || 0;
+
+    // Calculate attendance rate for current month
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthlyAttendance = await Attendance.aggregate([
+      {
+        $match: {
+          date: { $gte: startOfMonth, $lt: endOfToday }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'employeeId',
+          foreignField: '_id',
+          as: 'employee'
+        }
+      },
+      {
+        $unwind: '$employee'
+      },
+      {
+        $match: {
+          'employee.role': { $in: ['employee'] },
+          'employee.status': 'active'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalRecords: { $sum: 1 },
+          presentRecords: {
+            $sum: {
+              $cond: [
+                { $in: ['$status', ['present', 'late', 'half-day']] },
+                1,
+                0
+              ]
+            }
+          },
+          totalWorkingHours: { $sum: '$workingHours' },
+          totalOvertime: { $sum: '$overtime' }
+        }
+      }
+    ]);
+
+    const monthlyData = monthlyAttendance[0] || {
+      totalRecords: 0,
+      presentRecords: 0,
+      totalWorkingHours: 0,
+      totalOvertime: 0
+    };
+
+    const attendanceRate = monthlyData.totalRecords > 0 
+      ? Math.round((monthlyData.presentRecords / monthlyData.totalRecords) * 100)
+      : 0;
+
+    const averageWorkingHours = monthlyData.presentRecords > 0
+      ? Math.round((monthlyData.totalWorkingHours / monthlyData.presentRecords) * 100) / 100
+      : 0;
+
+    const stats = {
+      totalEmployees,
+      presentToday,
+      absentToday,
+      lateToday,
+      attendanceRate,
+      averageWorkingHours,
+      overtimeHours: monthlyData.totalOvertime || 0
+    };
+
+    res.json({
+      success: true,
+      stats,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Get attendance stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching attendance statistics',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

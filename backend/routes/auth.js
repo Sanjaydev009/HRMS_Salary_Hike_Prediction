@@ -85,9 +85,12 @@ router.post('/register', auth, async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    console.log(`Login attempt for: ${email} at ${new Date().toISOString()}`);
 
     // Validate input
     if (!email || !password) {
+      console.log('Login failed: Missing email or password');
       return res.status(400).json({
         success: false,
         message: 'Please provide email and password'
@@ -98,6 +101,7 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email }).select('+password');
     
     if (!user) {
+      console.log(`Login failed: User not found for email: ${email}`);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -106,6 +110,7 @@ router.post('/login', async (req, res) => {
 
     // Check if account is active
     if (user.status !== 'active') {
+      console.log(`Login failed: Account not active for email: ${email}`);
       return res.status(401).json({
         success: false,
         message: 'Account is not active. Please contact HR.'
@@ -116,6 +121,7 @@ router.post('/login', async (req, res) => {
     const isMatch = await user.comparePassword(password);
     
     if (!isMatch) {
+      console.log(`Login failed: Invalid password for email: ${email}`);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -128,6 +134,8 @@ router.post('/login', async (req, res) => {
 
     // Generate token
     const token = generateToken(user._id);
+    
+    console.log(`Login successful for: ${email} (${user.role})`);
 
     res.status(200).json({
       success: true,
@@ -149,7 +157,7 @@ router.post('/login', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error during login',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });

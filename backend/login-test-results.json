@@ -1,0 +1,67 @@
+[
+  {
+    "attempt": 1,
+    "status": 200,
+    "success": true,
+    "message": "Login successful",
+    "responseTime": "186ms",
+    "hasToken": true,
+    "rateLimitHeaders": {
+      "remaining": "499",
+      "resetTime": "900",
+      "limit": "500"
+    }
+  },
+  {
+    "attempt": 2,
+    "status": 200,
+    "success": true,
+    "message": "Login successful",
+    "responseTime": "93ms",
+    "hasToken": true,
+    "rateLimitHeaders": {
+      "remaining": "498",
+      "resetTime": "899",
+      "limit": "500"
+    }
+  },
+  {
+    "attempt": 3,
+    "status": 200,
+    "success": true,
+    "message": "Login successful",
+    "responseTime": "120ms",
+    "hasToken": true,
+    "rateLimitHeaders": {
+      "remaining": "497",
+      "resetTime": "898",
+      "limit": "500"
+    }
+  },
+  {
+    "attempt": 4,
+    "status": 200,
+    "success": true,
+    "message": "Login successful",
+    "responseTime": "111ms",
+    "hasToken": true,
+    "rateLimitHeaders": {
+      "remaining": "496",
+      "resetTime": "897",
+      "limit": "500"
+    }
+  },
+  {
+    "attempt": 5,
+    "status": 200,
+    "success": true,
+    "message": "Login successful",
+    "responseTime": "109ms",
+    "hasToken": true,
+    "rateLimitHeaders": {
+      "remaining": "495",
+      "resetTime": "896",
+      "limit": "500"
+    }
+  }
+]

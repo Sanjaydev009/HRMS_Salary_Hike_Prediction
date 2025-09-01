@@ -13,12 +13,35 @@ const app = express();
 app.use(helmet());
 app.use(compression());
 
-// Rate limiting
+// Rate limiting - More lenient for development
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 1000 requests in dev, 100 in prod
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later.'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
-app.use(limiter);
+
+// Special rate limiter for auth routes - even more lenient
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 50 : 500, // 500 login attempts in dev, 50 in prod
+  message: {
+    success: false,
+    message: 'Too many login attempts from this IP, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting only to API routes, not static files
+app.use('/api', limiter);
+
+// Apply special rate limiting to auth routes
+app.use('/api/auth', authLimiter);
 
 // CORS configuration
 app.use(cors({
@@ -45,6 +68,20 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/hrms', {
 .catch((error) => console.error('MongoDB connection error:', error));
 
 // Routes
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Server is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    rateLimitInfo: {
+      remaining: req.rateLimit?.remaining,
+      resetTime: req.rateLimit?.resetTime
+    }
+  });
+});
+
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/employees', require('./routes/employees'));
 app.use('/api/leaves', require('./routes/leaves'));

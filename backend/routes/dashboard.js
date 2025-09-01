@@ -134,6 +134,7 @@ router.get('/stats', auth, async (req, res) => {
       pendingLeaves,
       processedPayrolls,
       employeeGrowth,
+      employeeGrowthData: employeeGrowth, // Add this for compatibility
       departmentDistribution,
       leaveDistribution,
       currency: 'INR',
@@ -898,6 +899,44 @@ router.get('/hr-stats', auth, async (req, res) => {
     // Sort activities by timestamp
     recentActivities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     
+    // Generate employee growth data for last 6 months
+    const employeeGrowthData = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      
+      // Total employees at end of month
+      const totalAtMonth = await User.countDocuments({
+        role: { $in: ['employee'] },
+        'jobDetails.joiningDate': { $lte: monthEnd },
+        $or: [
+          { status: 'active' },
+          { 
+            status: 'inactive',
+            updatedAt: { $gt: monthEnd }
+          }
+        ]
+      });
+      
+      // New hires in that month
+      const newHires = await User.countDocuments({
+        role: { $in: ['employee'] },
+        'jobDetails.joiningDate': { $gte: monthStart, $lte: monthEnd }
+      });
+      
+      // Exits in that month (mock for now - add when exit date field exists)
+      const exits = Math.floor(Math.random() * 3) + 1; // Mock data
+      
+      employeeGrowthData.push({
+        month: date.toLocaleDateString('en-US', { month: 'short' }),
+        employees: totalAtMonth,
+        newHires: newHires,
+        exits: exits
+      });
+    }
+    
     res.json({
       organizationStats: {
         totalEmployees,
@@ -917,6 +956,7 @@ router.get('/hr-stats', auth, async (req, res) => {
         completedPayrolls
       },
       departmentDistribution: formattedDepartments,
+      employeeGrowthData,
       recentActivities,
       hrMetrics: {
         employeeSatisfaction: 85,
@@ -1018,6 +1058,235 @@ router.get('/admin-stats', auth, async (req, res) => {
     console.error('Error fetching admin dashboard data:', error);
     res.status(500).json({ 
       message: 'Error fetching admin dashboard data', 
+      error: error.message 
+    });
+  }
+});
+
+// GET /api/dashboard/analytics - Get comprehensive analytics data
+router.get('/analytics', auth, authorize(['hr', 'admin']), async (req, res) => {
+  try {
+    const currentDate = new Date();
+    const currentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const lastMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const lastYear = new Date(currentDate.getFullYear() - 1, currentDate.getMonth(), 1);
+    
+    // Advanced employee analytics
+    const employeeAnalytics = {
+      // Monthly hiring trends for last 12 months
+      hiringTrends: [],
+      // Department-wise employee distribution
+      departmentStats: [],
+      // Leave utilization patterns
+      leavePatterns: [],
+      // Salary insights
+      salaryInsights: {},
+      // Productivity metrics
+      productivityMetrics: {}
+    };
+    
+    // Generate hiring trends for last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      
+      const hiredCount = await User.countDocuments({
+        role: { $in: ['employee'] },
+        'jobDetails.joiningDate': { $gte: monthStart, $lte: monthEnd }
+      });
+      
+      const totalAtEnd = await User.countDocuments({
+        role: { $in: ['employee'] },
+        'jobDetails.joiningDate': { $lte: monthEnd },
+        status: 'active'
+      });
+      
+      employeeAnalytics.hiringTrends.push({
+        month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        hired: hiredCount,
+        total: totalAtEnd,
+        growth: i > 0 ? Math.round(((hiredCount / Math.max(totalAtEnd - hiredCount, 1)) * 100) * 100) / 100 : 0
+      });
+    }
+    
+    // Department statistics with detailed insights
+    employeeAnalytics.departmentStats = await User.aggregate([
+      {
+        $match: { 
+          role: { $in: ['employee'] },
+          status: 'active' 
+        }
+      },
+      {
+        $group: {
+          _id: '$jobDetails.department',
+          count: { $sum: 1 },
+          avgSalary: { $avg: '$jobDetails.salary.basic' },
+          newHires: {
+            $sum: {
+              $cond: [
+                { $gte: ['$jobDetails.joiningDate', currentMonth] },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+    
+    // Leave patterns analysis
+    const leaveData = await Leave.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: lastYear }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            month: { $month: '$createdAt' },
+            type: '$leaveType',
+            status: '$status'
+          },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    
+    // Process leave data into monthly patterns
+    const monthlyLeaveData = {};
+    leaveData.forEach(item => {
+      const month = new Date(2024, item._id.month - 1).toLocaleDateString('en-US', { month: 'short' });
+      if (!monthlyLeaveData[month]) {
+        monthlyLeaveData[month] = { total: 0, approved: 0, pending: 0, sick: 0, casual: 0 };
+      }
+      monthlyLeaveData[month].total += item.count;
+      if (item._id.status === 'approved') monthlyLeaveData[month].approved += item.count;
+      if (item._id.status === 'pending') monthlyLeaveData[month].pending += item.count;
+      if (item._id.type === 'sick') monthlyLeaveData[month].sick += item.count;
+      if (item._id.type === 'casual') monthlyLeaveData[month].casual += item.count;
+    });
+    
+    employeeAnalytics.leavePatterns = Object.entries(monthlyLeaveData).map(([month, data]) => ({
+      month,
+      ...data
+    }));
+    
+    // Salary insights
+    const salaryStats = await User.aggregate([
+      {
+        $match: { 
+          role: { $in: ['employee'] },
+          status: 'active' 
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          avgSalary: { $avg: '$jobDetails.salary.basic' },
+          minSalary: { $min: '$jobDetails.salary.basic' },
+          maxSalary: { $max: '$jobDetails.salary.basic' },
+          totalPayroll: { $sum: '$jobDetails.salary.basic' }
+        }
+      }
+    ]);
+    
+    employeeAnalytics.salaryInsights = salaryStats[0] || {
+      avgSalary: 0,
+      minSalary: 0,
+      maxSalary: 0,
+      totalPayroll: 0
+    };
+    
+    // Productivity metrics (mock data for now - integrate with actual productivity tracking)
+    employeeAnalytics.productivityMetrics = {
+      averageProductivity: 87,
+      topPerformers: 15,
+      improvementNeeded: 8,
+      trainingCompleted: 78
+    };
+    
+    res.json({
+      success: true,
+      analytics: employeeAnalytics,
+      lastUpdated: new Date().toISOString(),
+      dataPoints: {
+        hiringTrends: employeeAnalytics.hiringTrends.length,
+        departments: employeeAnalytics.departmentStats.length,
+        leaveMonths: employeeAnalytics.leavePatterns.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching analytics data:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching analytics data', 
+      error: error.message 
+    });
+  }
+});
+
+// GET /api/dashboard/employee-growth - Get employee growth data for HR dashboard
+router.get('/employee-growth', auth, authorize(['hr', 'admin']), async (req, res) => {
+  try {
+    const employeeGrowthData = [];
+    
+    // Generate data for last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      
+      // Total employees at end of month
+      const totalEmployees = await User.countDocuments({
+        role: { $in: ['employee'] },
+        'jobDetails.joiningDate': { $lte: monthEnd },
+        status: 'active'
+      });
+      
+      // New hires in that month
+      const newHires = await User.countDocuments({
+        role: { $in: ['employee'] },
+        'jobDetails.joiningDate': { $gte: monthStart, $lte: monthEnd }
+      });
+      
+      // Calculate growth percentage
+      const previousMonth = new Date(date);
+      previousMonth.setMonth(previousMonth.getMonth() - 1);
+      const previousMonthEnd = new Date(previousMonth.getFullYear(), previousMonth.getMonth() + 1, 0);
+      
+      const previousTotal = await User.countDocuments({
+        role: { $in: ['employee'] },
+        'jobDetails.joiningDate': { $lte: previousMonthEnd },
+        status: 'active'
+      });
+      
+      const growthPercentage = previousTotal > 0 ? 
+        Math.round(((totalEmployees - previousTotal) / previousTotal) * 100 * 100) / 100 : 0;
+      
+      employeeGrowthData.push({
+        month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        employees: totalEmployees,
+        newHires: newHires,
+        growth: growthPercentage
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: employeeGrowthData,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching employee growth data:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching employee growth data', 
       error: error.message 
     });
   }

@@ -43,6 +43,10 @@ import {
   BarChart,
   ChevronLeft,
   AccountCircle,
+  Business as BusinessIcon,
+  Schedule as ScheduleIcon,
+  TrendingUp as TrendingUpIcon,
+  Group as GroupIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -74,15 +78,27 @@ const navigationItems: NavigationItem[] = [
     children: [
       {
         id: 'employee-list',
-        title: 'Employee List',
+        title: 'Employee Directory',
         icon: <PersonIcon />,
-        path: '/employees',
+        path: '/employees/directory',
       },
       {
-        id: 'add-employee',
-        title: 'Add Employee',
-        icon: <PersonIcon />,
-        path: '/employees/new',
+        id: 'employee-departments',
+        title: 'Departments',
+        icon: <BusinessIcon />,
+        path: '/employees/departments',
+      },
+      {
+        id: 'employee-attendance',
+        title: 'Attendance',
+        icon: <ScheduleIcon />,
+        path: '/employees/attendance',
+      },
+      {
+        id: 'employee-analytics',
+        title: 'Analytics',
+        icon: <TrendingUpIcon />,
+        path: '/employees/analytics',
       },
     ],
   },
@@ -205,7 +221,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     setNotificationAnchorEl(null);
   };
 
-  const handleNavigation = (path: string) => {
+  const handleNavigation = (path: string) => {    
     navigate(path);
     if (isMobile) {
       setMobileOpen(false);
