@@ -676,4 +676,120 @@ router.get('/performance-insights', auth, authorize('hr', 'admin'), async (req, 
   }
 });
 
+// @route   GET /api/analytics/realtime-metrics
+// @desc    Get real-time system metrics
+// @access  Private (HR/Admin)
+router.get('/realtime-metrics', auth, authorize('hr', 'admin'), async (req, res) => {
+  try {
+    // Get current active sessions (this would be from session store in production)
+    const activeUsers = Math.floor(Math.random() * 50) + 10;
+    
+    // System load simulation (in production, this would be actual server metrics)
+    const systemLoad = Math.floor(Math.random() * 100);
+    
+    // Count pending items that need attention
+    const pendingLeaves = await Leave.countDocuments({ status: 'pending' });
+    const pendingPayroll = await Payroll.countDocuments({ 
+      'paymentDetails.status': { $ne: 'paid' },
+      'payPeriod.year': new Date().getFullYear(),
+      'payPeriod.month': new Date().getMonth() + 1
+    });
+    
+    // Recent alerts (could be from an alerts collection)
+    const alertsCount = Math.floor(Math.random() * 5);
+    
+    const metrics = {
+      activeUsers,
+      systemLoad,
+      dataLastUpdated: new Date().toISOString(),
+      alertsCount,
+      pendingApprovals: pendingLeaves + pendingPayroll,
+      systemHealth: {
+        database: 'healthy',
+        mlService: 'healthy',
+        emailService: 'healthy'
+      },
+      performanceMetrics: {
+        avgResponseTime: Math.floor(Math.random() * 200) + 50,
+        requestsPerMinute: Math.floor(Math.random() * 100) + 200,
+        errorRate: Math.random() * 2
+      }
+    };
+
+    res.status(200).json({
+      success: true,
+      metrics
+    });
+  } catch (error) {
+    console.error('Real-time metrics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/analytics/employee-details
+// @desc    Get detailed employee analytics data
+// @access  Private (HR/Admin)
+router.get('/employee-details', auth, authorize('hr', 'admin'), async (req, res) => {
+  try {
+    const { department, limit = 50 } = req.query;
+    
+    let matchCondition = {
+      role: { $in: ['employee', 'manager'] },
+      status: 'active'
+    };
+    
+    if (department) {
+      matchCondition['jobDetails.department'] = department;
+    }
+
+    const employees = await User.find(matchCondition)
+      .select('profile jobDetails performanceHistory documents createdAt')
+      .limit(parseInt(limit))
+      .sort({ 'jobDetails.joiningDate': -1 });
+
+    // Enhance employee data with calculated metrics
+    const enhancedEmployees = employees.map(emp => {
+      const joiningDate = new Date(emp.jobDetails.joiningDate);
+      const tenure = (new Date() - joiningDate) / (1000 * 60 * 60 * 24 * 365.25);
+      
+      // Calculate attendance stats (simulation for demo)
+      const attendanceStats = {
+        totalDays: Math.floor(tenure * 250), // Working days per year
+        presentDays: Math.floor(tenure * 250 * (0.8 + Math.random() * 0.2)),
+        absentDays: Math.floor(tenure * 250 * (Math.random() * 0.2)),
+        attendanceRate: 80 + Math.random() * 20
+      };
+
+      return {
+        ...emp.toObject(),
+        calculatedMetrics: {
+          tenure: Math.round(tenure * 10) / 10,
+          attendanceStats,
+          certificationCount: emp.documents?.filter(doc => doc.type === 'education').length || 0,
+          lastPerformanceRating: emp.performanceHistory?.length 
+            ? emp.performanceHistory[emp.performanceHistory.length - 1].rating 
+            : null
+        }
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      employees: enhancedEmployees,
+      totalCount: employees.length
+    });
+  } catch (error) {
+    console.error('Employee details error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

@@ -8,6 +8,7 @@ import theme from './theme/theme';
 import RoleBasedLayout from './components/layout/RoleBasedLayout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Page Components
 import Dashboard from './pages/dashboards/RoleBasedDashboard';
@@ -20,13 +21,15 @@ import Login from './pages/auth/Login';
 import CertificationManager from './components/certifications/CertificationManager';
 import SalaryPredictionDashboard from './components/ml/SalaryPredictionDashboard';
 
-// Employee Management Components
-import EmployeeManagementLayout from './pages/employees/EmployeeManagementLayout';
+// HR Components
+import HREmployeeManagement from './components/hr/HREmployeeManagement';
+import ProfessionalEmployeeManagement from './components/employees/ProfessionalEmployeeManagement';
 import EmployeeDirectoryModern from './pages/employees/EmployeeDirectoryModern';
 import EmployeeDepartmentsModern from './pages/employees/EmployeeDepartmentsModern';
 import EmployeeAnalyticsModern from './pages/employees/EmployeeAnalyticsModern';
 import EmployeeAttendanceModern from './pages/employees/EmployeeAttendanceModern';
 import IntegratedEmployeeManagement from './components/employees/IntegratedEmployeeManagement';
+import Analytics from './pages/analytics/Analytics';
 
 // Employee Pages
 import EmployeeProfile from './pages/employee/EmployeeProfile';
@@ -42,9 +45,10 @@ function App() {
   return (
     <Provider store={store}>
       <AuthProvider>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <Router>
+        <NotificationProvider>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <Router>
             <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
@@ -69,55 +73,46 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* Employee Management Routes with Integrated Layout */}
+            {/* Employee Management Routes with HR-specific Layout */}
             <Route path="/employees" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['hr', 'admin']}>
                 <RoleBasedLayout>
-                  <IntegratedEmployeeManagement />
+                  <ProfessionalEmployeeManagement />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
             
-            <Route path="/employees/*" element={
-              <ProtectedRoute>
+            <Route path="/employees/directory" element={
+              <ProtectedRoute allowedRoles={['hr', 'admin']}>
                 <RoleBasedLayout>
-                  <EmployeeManagementLayout />
+                  <EmployeeDirectoryModern />
                 </RoleBasedLayout>
               </ProtectedRoute>
-            }>
-              {/* Employee Management Sub-routes */}
-              <Route index element={<ModernEmployeeManagement />} />
-              <Route path="new" element={<ModernEmployeeManagement />} />
-              <Route path="edit/:id" element={<ModernEmployeeManagement />} />
-              <Route path="directory" element={<EmployeeDirectoryModern />} />
-              <Route path="departments" element={<EmployeeDepartmentsModern />} />
-              <Route path="analytics" element={<EmployeeAnalyticsModern />} />
-              <Route path="attendance" element={<EmployeeAttendanceModern />} />
-              <Route path="org-chart" element={
-                <PlaceholderPage 
-                  title="Organization Chart" 
-                  description="Visual representation of organizational hierarchy and reporting structure" 
-                />
-              } />
-              <Route path="training" element={
-                <PlaceholderPage 
-                  title="Training & Development" 
-                  description="Manage employee training programs and development initiatives" 
-                />
-              } />
-              <Route path="performance" element={
-                <PlaceholderPage 
-                  title="Performance Reviews" 
-                  description="Employee performance management and review system" 
-                />
-              } />
-              <Route path="permissions" element={
-                <PlaceholderPage 
-                  title="Roles & Permissions" 
-                  description="Manage user roles and access permissions (Admin only)" 
-                />
-              } />
-            </Route>
+            } />
+            
+            <Route path="/employees/departments" element={
+              <ProtectedRoute allowedRoles={['hr', 'admin']}>
+                <RoleBasedLayout>
+                  <EmployeeDepartmentsModern />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/employees/analytics" element={
+              <ProtectedRoute allowedRoles={['hr', 'admin']}>
+                <RoleBasedLayout>
+                  <EmployeeAnalyticsModern />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/employees/attendance" element={
+              <ProtectedRoute allowedRoles={['hr', 'admin']}>
+                <RoleBasedLayout>
+                  <EmployeeAttendanceModern />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
             
             {/* Leave Management Routes */}
             <Route path="/leaves" element={
@@ -244,24 +239,9 @@ function App() {
             
             {/* Analytics Route */}
             <Route path="/analytics" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['hr', 'admin']}>
                 <RoleBasedLayout>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    minHeight: '60vh',
-                    flexDirection: 'column',
-                    gap: 2
-                  }}>
-                    <Box sx={{ fontSize: '3rem' }}>📊</Box>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <h2 style={{ margin: 0, color: theme.palette.text.primary }}>HR Analytics Dashboard</h2>
-                      <p style={{ color: theme.palette.text.secondary, margin: '8px 0 0 0' }}>
-                        Advanced HR analytics and reporting features
-                      </p>
-                    </Box>
-                  </Box>
+                  <Analytics />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -676,6 +656,7 @@ function App() {
           </Routes>
         </Router>
         </ThemeProvider>
+        </NotificationProvider>
       </AuthProvider>
     </Provider>
   );

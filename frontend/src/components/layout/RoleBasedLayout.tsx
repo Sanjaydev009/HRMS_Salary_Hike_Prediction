@@ -186,7 +186,7 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
           {
             text: 'Employee Management',
             icon: <PeopleIcon />,
-            path: '/hr/employees',
+            path: '/employees',
           },
           {
             text: 'Leave Management',
@@ -202,6 +202,7 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
             children: [
               { text: 'Process Payroll', icon: <MonetizationOn />, path: '/payroll' },
               { text: 'Payslips', icon: <Receipt />, path: '/payroll/payslips' },
+              { text: 'Salary Calculator', icon: <Calculate />, path: '/payroll/calculator' },
             ],
           },
           {
