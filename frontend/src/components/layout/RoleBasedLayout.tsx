@@ -132,7 +132,7 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['dashboard']);
 
-  // Role-specific navigation items
+  // Simplified Role-specific navigation items - Only Essential Features
   const getNavigationItems = (): NavigationItem[] => {
     const role = user?.role?.toLowerCase();
     
@@ -140,196 +140,79 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
       case 'admin':
         return [
           {
-            text: 'Admin Dashboard',
-            icon: <DashboardIcon />,
-            path: '/dashboard',
-          },
-          {
-            text: 'System Management',
-            icon: <SettingsIcon />,
-            children: [
-              { text: 'System Settings', icon: <Settings />, path: '/admin/settings' },
-              { text: 'System Health', icon: <MonitorHeart />, path: '/admin/health' },
-              { text: 'Database Management', icon: <Storage />, path: '/admin/database' },
-              { text: 'System Logs', icon: <Assignment />, path: '/admin/logs' },
-              { text: 'Security Audit', icon: <Security />, path: '/admin/security-audit' },
-              { text: 'Backup & Recovery', icon: <BackupTable />, path: '/admin/backup' },
-            ],
-          },
-          {
-            text: 'User & Role Management',
-            icon: <PeopleIcon />,
-            children: [
-              { text: 'All Users', icon: <Group />, path: '/admin/users' },
-              { text: 'Role Management', icon: <AdminPanelSettings />, path: '/admin/roles' },
-              { text: 'User Permissions', icon: <Security />, path: '/admin/permissions' },
-              { text: 'Access Control', icon: <VpnKey />, path: '/admin/access-control' },
-              { text: 'Password Policies', icon: <Key />, path: '/admin/password-policies' },
-              { text: 'User Activity Logs', icon: <Timeline />, path: '/admin/user-logs' },
-            ],
-          },
-          {
-            text: 'Organization Setup',
-            icon: <BusinessIcon />,
-            children: [
-              { text: 'Company Profile', icon: <Business />, path: '/admin/company' },
-              { text: 'Department Setup', icon: <Diversity3 />, path: '/admin/departments' },
-              { text: 'Designation Management', icon: <WorkOutline />, path: '/admin/designations' },
-              { text: 'Location Management', icon: <LocationOn />, path: '/admin/locations' },
-              { text: 'Cost Centers', icon: <AccountBalance />, path: '/admin/cost-centers' },
-            ],
-          },
-          {
-            text: 'Module Configuration',
-            icon: <Extension />,
-            children: [
-              { text: 'Module Settings', icon: <Settings />, path: '/admin/modules' },
-              { text: 'Feature Toggles', icon: <ToggleOn />, path: '/admin/features' },
-              { text: 'Workflow Setup', icon: <Timeline />, path: '/admin/workflows' },
-              { text: 'Approval Matrix', icon: <Approval />, path: '/admin/approvals' },
-              { text: 'Email Templates', icon: <Email />, path: '/admin/email-templates' },
-              { text: 'Notification Settings', icon: <NotificationsActive />, path: '/admin/notifications' },
-            ],
-          },
-          {
-            text: 'Financial Configuration',
-            icon: <PaymentIcon />,
-            children: [
-              { text: 'Salary Components', icon: <MonetizationOn />, path: '/admin/salary-components' },
-              { text: 'Tax Settings', icon: <Receipt />, path: '/admin/tax-settings' },
-              { text: 'Currency Management', icon: <AttachMoney />, path: '/admin/currency' },
-              { text: 'Expense Categories', icon: <Category />, path: '/admin/expense-categories' },
-              { text: 'Payment Methods', icon: <PaymentIcon />, path: '/admin/payment-methods' },
-            ],
-          },
-          {
-            text: 'Reports & Analytics',
-            icon: <AnalyticsIcon />,
-            children: [
-              { text: 'System Analytics', icon: <PieChart />, path: '/admin/analytics' },
-              { text: 'Usage Reports', icon: <Assessment />, path: '/admin/usage-reports' },
-              { text: 'Performance Metrics', icon: <Speed />, path: '/admin/performance' },
-              { text: 'User Engagement', icon: <TrendingUp />, path: '/admin/engagement' },
-              { text: 'System Alerts', icon: <Warning />, path: '/admin/alerts' },
-            ],
-          },
-          {
-            text: 'Integration & APIs',
-            icon: <IntegrationInstructions />,
-            children: [
-              { text: 'API Management', icon: <Code />, path: '/admin/api' },
-              { text: 'Third-party Integrations', icon: <Link />, path: '/admin/integrations' },
-              { text: 'Data Import/Export', icon: <ImportExport />, path: '/admin/data-transfer' },
-              { text: 'Webhooks', icon: <Webhook />, path: '/admin/webhooks' },
-              { text: 'External Connections', icon: <CloudSync />, path: '/admin/connections' },
-            ],
-          },
-          {
-            text: 'Support & Maintenance',
-            icon: <Support />,
-            children: [
-              { text: 'Support Tickets', icon: <ConfirmationNumber />, path: '/admin/tickets' },
-              { text: 'System Maintenance', icon: <Build />, path: '/admin/maintenance' },
-              { text: 'Update Management', icon: <SystemUpdate />, path: '/admin/updates' },
-              { text: 'Help Documentation', icon: <Help />, path: '/admin/help' },
-              { text: 'Training Materials', icon: <School />, path: '/admin/training' },
-            ],
-          },
-        ];      case 'hr':
-        return [
-          {
-            text: 'HR Dashboard',
+            text: 'Dashboard',
             icon: <DashboardIcon />,
             path: '/dashboard',
           },
           {
             text: 'Employee Management',
             icon: <PeopleIcon />,
-            children: [
-              { text: 'All Employees', icon: <Group />, path: '/employees' },
-              { text: 'Add New Employee', icon: <PersonAdd />, path: '/employees/new' },
-              { text: 'Employee Profiles', icon: <PersonIcon />, path: '/hr/profiles' },
-              { text: 'Onboarding Process', icon: <HowToReg />, path: '/hr/onboarding' },
-              { text: 'Employee Documents', icon: <Assignment />, path: '/hr/documents' },
-              { text: 'Exit Process', icon: <ExitToApp />, path: '/hr/exit-process' },
-            ],
+            path: '/employees',
           },
           {
-            text: 'Leave & Attendance',
+            text: 'Leave Management',
+            icon: <EventNoteIcon />,
+            path: '/leaves',
+          },
+          {
+            text: 'Payroll Management',
+            icon: <PaymentIcon />,
+            path: '/payroll',
+          },
+          {
+            text: 'Certifications',
+            icon: <School />,
+            path: '/certifications',
+          },
+          {
+            text: 'Analytics & Reports',
+            icon: <AnalyticsIcon />,
+            path: '/analytics',
+          },
+          {
+            text: 'System Settings',
+            icon: <SettingsIcon />,
+            path: '/settings',
+          },
+        ];
+
+      case 'hr':
+        return [
+          {
+            text: 'Dashboard',
+            icon: <DashboardIcon />,
+            path: '/dashboard',
+          },
+          {
+            text: 'Employee Management',
+            icon: <PeopleIcon />,
+            path: '/hr/employees',
+          },
+          {
+            text: 'Leave Management',
             icon: <EventNoteIcon />,
             children: [
               { text: 'Leave Requests', icon: <RequestPage />, path: '/leaves' },
-              { text: 'Attendance Overview', icon: <Schedule />, path: '/hr/attendance' },
               { text: 'Leave Calendar', icon: <CalendarMonth />, path: '/leaves/calendar' },
-              { text: 'Leave Policies', icon: <PostAdd />, path: '/hr/leave-policies' },
-              { text: 'Holiday Management', icon: <DateRange />, path: '/hr/holidays' },
-              { text: 'Overtime Approvals', icon: <MoreTime />, path: '/hr/overtime' },
             ],
           },
           {
-            text: 'Payroll & Compensation',
+            text: 'Payroll Management',
             icon: <PaymentIcon />,
             children: [
-              { text: 'Payroll Processing', icon: <MonetizationOn />, path: '/payroll' },
-              { text: 'Salary Management', icon: <Calculate />, path: '/payroll/calculator' },
-              { text: 'Payslip Viewer', icon: <Receipt />, path: '/payroll/payslips' },
-              { text: 'Bonus & Incentives', icon: <AttachMoney />, path: '/hr/bonuses' },
-              { text: 'Tax Processing', icon: <Receipt />, path: '/hr/tax-processing' },
-              { text: 'Benefits Administration', icon: <Savings />, path: '/hr/benefits' },
+              { text: 'Process Payroll', icon: <MonetizationOn />, path: '/payroll' },
+              { text: 'Payslips', icon: <Receipt />, path: '/payroll/payslips' },
             ],
           },
           {
-            text: 'Performance Management',
-            icon: <TrendingUp />,
-            children: [
-              { text: 'Performance Reviews', icon: <Assessment />, path: '/hr/performance' },
-              { text: 'Goal Management', icon: <Assignment />, path: '/hr/goals' },
-              { text: 'Performance Reports', icon: <BarChart />, path: '/hr/performance-reports' },
-              { text: 'Employee Feedback', icon: <Star />, path: '/hr/feedback' },
-              { text: 'Career Development', icon: <TrendingUp />, path: '/hr/career-development' },
-            ],
-          },
-          {
-            text: 'Recruitment & Hiring',
-            icon: <Diversity3 />,
-            children: [
-              { text: 'Job Postings', icon: <PostAdd />, path: '/hr/jobs' },
-              { text: 'Job Applications', icon: <Assignment />, path: '/hr/applications' },
-              { text: 'Interview Scheduling', icon: <Schedule />, path: '/hr/interviews' },
-              { text: 'Candidate Database', icon: <Group />, path: '/hr/candidates' },
-              { text: 'Offer Management', icon: <AttachMoney />, path: '/hr/offers' },
-            ],
-          },
-          {
-            text: 'Training & Development',
+            text: 'Certifications',
             icon: <School />,
-            children: [
-              { text: 'Training Programs', icon: <Inventory />, path: '/hr/training' },
-              { text: 'Skills Assessment', icon: <Assessment />, path: '/hr/skills' },
-              { text: 'Certification Tracking', icon: <Assignment />, path: '/hr/certifications' },
-              { text: 'Learning Paths', icon: <Timeline />, path: '/hr/learning-paths' },
-            ],
+            path: '/certifications',
           },
           {
-            text: 'HR Analytics & Reports',
+            text: 'Analytics',
             icon: <AnalyticsIcon />,
-            children: [
-              { text: 'HR Analytics', icon: <PieChart />, path: '/analytics' },
-              { text: 'Employee Reports', icon: <Assessment />, path: '/hr/reports' },
-              { text: 'Attendance Reports', icon: <Schedule />, path: '/hr/attendance-reports' },
-              { text: 'Payroll Reports', icon: <Receipt />, path: '/hr/payroll-reports' },
-              { text: 'Turnover Analysis', icon: <TrendingUp />, path: '/hr/turnover' },
-            ],
-          },
-          {
-            text: 'HR Policies & Compliance',
-            icon: <Security />,
-            children: [
-              { text: 'Company Policies', icon: <Assignment />, path: '/hr/policies' },
-              { text: 'Compliance Tracking', icon: <Security />, path: '/hr/compliance' },
-              { text: 'Audit Management', icon: <Timeline />, path: '/hr/audit' },
-              { text: 'Employee Handbook', icon: <MenuBook />, path: '/hr/handbook' },
-            ],
+            path: '/analytics',
           },
         ];
 
@@ -337,80 +220,39 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
       default:
         return [
           {
-            text: 'My Dashboard',
+            text: 'Dashboard',
             icon: <DashboardIcon />,
             path: '/dashboard',
           },
           {
             text: 'My Profile',
             icon: <PersonIcon />,
-            children: [
-              { text: 'Personal Info', icon: <AccountCircle />, path: '/employee/profile' },
-              { text: 'Emergency Contacts', icon: <Group />, path: '/employee/emergency-contacts' },
-              { text: 'My Documents', icon: <Assignment />, path: '/employee/documents' },
-              { text: 'Bank Details', icon: <AccountBalance />, path: '/employee/bank-details' },
-            ],
+            path: '/employee/profile',
           },
           {
-            text: 'My Attendance',
+            text: 'Attendance',
             icon: <Schedule />,
-            children: [
-              { text: 'Check In/Out', icon: <WorkHistory />, path: '/employee/attendance' },
-              { text: 'Attendance History', icon: <Schedule />, path: '/employee/my-attendance' },
-              { text: 'Work Hours Summary', icon: <Timeline />, path: '/employee/work-hours' },
-              { text: 'Overtime Requests', icon: <MoreTime />, path: '/employee/overtime' },
-            ],
+            path: '/employee/attendance',
+          },
+          {
+            text: 'Apply Leave',
+            icon: <EventNoteIcon />,
+            path: '/employee/leave/apply',
           },
           {
             text: 'My Leaves',
             icon: <EventNoteIcon />,
-            children: [
-              { text: 'Apply for Leave', icon: <RequestPage />, path: '/employee/leave/apply' },
-              { text: 'My Leave History', icon: <EventNoteIcon />, path: '/employee/leaves' },
-              { text: 'Leave Balance', icon: <CalendarMonth />, path: '/employee/leave-balance' },
-              { text: 'Company Holidays', icon: <DateRange />, path: '/employee/holidays' },
-            ],
+            path: '/employee/leave/history',
           },
           {
-            text: 'My Payroll',
-            icon: <PaymentIcon />,
-            children: [
-              { text: 'Current Payslip', icon: <Receipt />, path: '/employee/payslips/current' },
-              { text: 'All Payslips', icon: <Receipt />, path: '/employee/payslips' },
-              { text: 'Salary History', icon: <MonetizationOn />, path: '/employee/salary-history' },
-              { text: 'Tax Documents', icon: <Assignment />, path: '/employee/tax-documents' },
-              { text: 'Investment Declarations', icon: <Savings />, path: '/employee/investments' },
-            ],
-          },
-          {
-            text: 'My Performance',
-            icon: <TrendingUp />,
-            children: [
-              { text: 'My Goals', icon: <Assignment />, path: '/employee/goals' },
-              { text: 'Performance Review', icon: <Assessment />, path: '/employee/performance' },
-              { text: 'My Achievements', icon: <Star />, path: '/employee/achievements' },
-              { text: 'Feedback Received', icon: <BarChart />, path: '/employee/feedback' },
-            ],
-          },
-          {
-            text: 'Learning & Growth',
+            text: 'Certifications',
             icon: <School />,
-            children: [
-              { text: 'My Training', icon: <Inventory />, path: '/employee/training' },
-              { text: 'My Certifications', icon: <Assignment />, path: '/employee/certifications' },
-              { text: 'Skill Development', icon: <Assessment />, path: '/employee/skills' },
-              { text: 'Career Path', icon: <TrendingUp />, path: '/employee/career-path' },
-            ],
+            path: '/certifications',
           },
           {
-            text: 'Team & Communication',
-            icon: <Group />,
-            children: [
-              { text: 'My Team', icon: <Group />, path: '/employee/team' },
-              { text: 'Company Directory', icon: <ContactPhone />, path: '/employee/directory' },
-              { text: 'Announcements', icon: <Campaign />, path: '/employee/announcements' },
-              { text: 'Request Support', icon: <Support />, path: '/employee/support' },
-            ],
+            text: 'Payroll',
+            icon: <PaymentIcon />,
+            path: '/employee/payroll',
           },
         ];
     }

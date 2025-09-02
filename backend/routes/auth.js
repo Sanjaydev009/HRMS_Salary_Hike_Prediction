@@ -1,7 +1,9 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const emailService = require('../services/emailService');
 const router = express.Router();
 
 // Generate JWT token
@@ -219,7 +221,20 @@ router.put('/password', auth, async (req, res) => {
 
     // Update password
     user.password = newPassword;
+    user.isFirstLogin = false;
     await user.save();
+
+    // Send password changed notification email
+    try {
+      const emailData = {
+        fullName: `${user.profile.firstName} ${user.profile.lastName}`,
+        email: user.email
+      };
+      await emailService.sendPasswordChangedEmail(emailData);
+    } catch (emailError) {
+      console.error('Failed to send password changed email:', emailError);
+      // Don't fail the password change if email fails
+    }
 
     res.status(200).json({
       success: true,
@@ -227,6 +242,234 @@ router.put('/password', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Change password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/auth/forgot-password
+// @desc    Send password reset email
+// @access  Public
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email address'
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No user found with this email address'
+      });
+    }
+
+    if (user.status !== 'active') {
+      return res.status(400).json({
+        success: false,
+        message: 'Account is not active. Please contact HR.'
+      });
+    }
+
+    // Generate reset token
+    const resetToken = user.createPasswordResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    // Send reset email
+    try {
+      const emailData = {
+        fullName: `${user.profile.firstName} ${user.profile.lastName}`,
+        email: user.email
+      };
+      
+      const emailResult = await emailService.sendPasswordResetEmail(emailData, resetToken);
+      
+      if (emailResult.success) {
+        res.status(200).json({
+          success: true,
+          message: 'Password reset email sent successfully'
+        });
+      } else {
+        throw new Error(emailResult.error);
+      }
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      
+      // Reset the token fields if email fails
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+      
+      res.status(500).json({
+        success: false,
+        message: 'Error sending password reset email. Please try again.'
+      });
+    }
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/auth/reset-password
+// @desc    Reset password using token
+// @access  Public
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide token and new password'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Hash the token to compare with database
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find user with matching token and check if token hasn't expired
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired password reset token'
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    user.isFirstLogin = false;
+    await user.save();
+
+    // Send password changed confirmation email
+    try {
+      const emailData = {
+        fullName: `${user.profile.firstName} ${user.profile.lastName}`,
+        email: user.email
+      };
+      await emailService.sendPasswordChangedEmail(emailData);
+    } catch (emailError) {
+      console.error('Failed to send password changed email:', emailError);
+      // Don't fail the password reset if email fails
+    }
+
+    // Generate new token for immediate login
+    const loginToken = generateToken(user._id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successfully',
+      data: {
+        user: {
+          id: user._id,
+          employeeId: user.employeeId,
+          email: user.email,
+          role: user.role,
+          profile: user.profile
+        },
+        token: loginToken
+      }
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/auth/first-login
+// @desc    Handle first login password change
+// @access  Private
+router.post('/first-login', auth, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide new password'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user.isFirstLogin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password has already been changed'
+      });
+    }
+
+    // Update password
+    user.password = newPassword;
+    user.isFirstLogin = false;
+    await user.save();
+
+    // Send password changed notification email
+    try {
+      const emailData = {
+        fullName: `${user.profile.firstName} ${user.profile.lastName}`,
+        email: user.email
+      };
+      await emailService.sendPasswordChangedEmail(emailData);
+    } catch (emailError) {
+      console.error('Failed to send password changed email:', emailError);
+      // Don't fail the password change if email fails
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully. Welcome to HRMS!',
+      data: {
+        user: {
+          id: user._id,
+          employeeId: user.employeeId,
+          email: user.email,
+          role: user.role,
+          profile: user.profile,
+          isFirstLogin: false
+        }
+      }
+    });
+  } catch (error) {
+    console.error('First login password change error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

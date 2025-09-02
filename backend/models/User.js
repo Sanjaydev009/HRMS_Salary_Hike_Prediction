@@ -183,6 +183,20 @@ const userSchema = new mongoose.Schema({
   twoFactorEnabled: {
     type: Boolean,
     default: false
+  },
+  // Password reset fields
+  passwordResetToken: {
+    type: String
+  },
+  passwordResetExpires: {
+    type: Date
+  },
+  isFirstLogin: {
+    type: Boolean,
+    default: true
+  },
+  passwordChangedAt: {
+    type: Date
   }
 }, {
   timestamps: true
@@ -206,6 +220,13 @@ userSchema.pre('save', async function(next) {
   try {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
+    
+    // Set password changed timestamp
+    if (this.isModified('password') && !this.isNew) {
+      this.passwordChangedAt = new Date();
+      this.isFirstLogin = false;
+    }
+    
     next();
   } catch (error) {
     next(error);
@@ -215,6 +236,26 @@ userSchema.pre('save', async function(next) {
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Create password reset token
+userSchema.methods.createPasswordResetToken = function() {
+  const crypto = require('crypto');
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  
+  this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  this.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  
+  return resetToken;
+};
+
+// Check if password was changed after JWT was issued
+userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
+  if (this.passwordChangedAt) {
+    const changedTimestamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
+    return JWTTimestamp < changedTimestamp;
+  }
+  return false;
 };
 
 // Get user's total salary

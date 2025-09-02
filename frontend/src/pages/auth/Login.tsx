@@ -679,13 +679,18 @@ const Login: React.FC = () => {
 
             <Box sx={{ textAlign: 'center', mb: 4 }}>
               <Link 
-                href="#" 
+                component="button"
+                type="button"
                 variant="body2" 
+                onClick={() => navigate('/forgot-password')}
                 sx={{ 
                   color: 'primary.main',
                   textDecoration: 'none',
                   fontWeight: 500,
                   transition: 'all 0.2s ease-in-out',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
                   '&:hover': {
                     textDecoration: 'underline',
                     transform: 'scale(1.05)',

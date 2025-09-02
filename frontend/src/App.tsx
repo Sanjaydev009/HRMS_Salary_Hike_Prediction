@@ -17,8 +17,7 @@ import PayrollManagement from './pages/payroll/PayrollManagement';
 import Profile from './pages/profile/ProfileSimple';
 import Settings from './pages/settings/Settings';
 import Login from './pages/auth/Login';
-import NavigationTest from './pages/NavigationTest';
-import AppDebugInfo from './components/debug/AppDebugInfo';
+import CertificationManager from './components/certifications/CertificationManager';
 
 // Employee Management Components
 import EmployeeManagementLayout from './pages/employees/EmployeeManagementLayout';
@@ -48,20 +47,8 @@ function App() {
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             
-            {/* Debug Route */}
-            <Route path="/debug" element={<AppDebugInfo />} />
-            
             {/* Root redirect to login if not authenticated */}
             <Route path="/" element={<Navigate to="/login" replace />} />
-            
-            {/* Navigation Test Route */}
-            <Route path="/nav-test" element={
-              <ProtectedRoute>
-                <RoleBasedLayout>
-                  <NavigationTest />
-                </RoleBasedLayout>
-              </ProtectedRoute>
-            } />
             
             {/* Protected Routes with Role-Based Layout */}
             <Route path="/dashboard/*" element={
@@ -222,6 +209,15 @@ function App() {
               <ProtectedRoute>
                 <RoleBasedLayout>
                   <Profile />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+            
+            {/* Certification Management Route */}
+            <Route path="/certifications" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <CertificationManager />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
