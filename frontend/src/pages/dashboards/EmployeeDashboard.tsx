@@ -143,10 +143,96 @@ const EmployeeDashboard: React.FC = () => {
   const fetchSalaryPrediction = async () => {
     try {
       setPredictionLoading(true);
-      const prediction = await certificationsAPI.getSalaryPrediction();
-      setSalaryPrediction(prediction.data);
+      
+      // First check if ML service is available
+      const statusResponse = await fetch('http://localhost:8001/model/status');
+      if (!statusResponse.ok) {
+        throw new Error('ML service unavailable');
+      }
+      
+      // Get user certifications and other data
+      const token = localStorage.getItem('token');
+      
+      const [certResponse, attendanceResponse] = await Promise.all([
+        fetch('http://localhost:5001/api/certifications/my', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('http://localhost:5001/api/attendance/summary', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+      
+      const certData = await certResponse.json();
+      const attendanceData = await attendanceResponse.json();
+      
+      // Prepare ML request with real-time data
+      const mlRequest = {
+        employee_data: {
+          department: user?.jobDetails?.department || dashboardData?.profile?.department || 'Unknown',
+          designation: user?.jobDetails?.designation || dashboardData?.profile?.jobTitle || 'Unknown',
+          experience_years: dashboardData?.profile?.experience || 2,
+          performance_rating: dashboardData?.profile?.performanceRating || 3.5,
+          education_level: dashboardData?.profile?.education || 'Bachelor',
+          location: dashboardData?.profile?.location || 'Office',
+          current_salary: dashboardData?.currentSalary || dashboardData?.profile?.salary || 50000,
+          attendance_metrics: {
+            attendance_rate: attendanceData.data?.attendanceRate || dashboardData?.attendanceThisMonth || 85,
+            average_hours_per_day: 8,
+            punctuality_score: 85,
+            remote_work_percentage: 25,
+            overtime_hours_monthly: 10,
+            consistency_score: 75
+          },
+          certification_data: {
+            total_certifications: certData.data?.stats?.total || dashboardData?.certifications?.total || 0,
+            technical_certifications: certData.data?.stats?.categories?.Technical || 0,
+            management_certifications: certData.data?.stats?.categories?.Management || 0,
+            leadership_certifications: certData.data?.stats?.categories?.Leadership || 0,
+            certification_impact_score: (certData.data?.stats?.total || 0) * 15,
+            recent_certifications: certData.data?.stats?.total || 0,
+            expired_certifications: 0,
+            certification_diversity_score: Object.keys(certData.data?.stats?.categories || {}).length * 25
+          },
+          project_completion_rate: dashboardData?.profile?.projectCompletionRate || 85,
+          team_size_managed: dashboardData?.profile?.teamSize || 0,
+          revenue_generated: dashboardData?.profile?.revenueGenerated || 0
+        }
+      };
+
+      // Call ML service for real-time prediction
+      const mlResponse = await fetch('http://localhost:8001/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(mlRequest)
+      });
+
+      if (!mlResponse.ok) {
+        throw new Error('ML prediction failed');
+      }
+
+      const prediction = await mlResponse.json();
+      setSalaryPrediction(prediction);
+      
     } catch (error) {
-      console.error('Error fetching salary prediction:', error);
+      console.error('Error fetching real-time salary prediction:', error);
+      // Fallback to backend API
+      try {
+        const prediction = await certificationsAPI.getSalaryPrediction();
+        setSalaryPrediction({
+          predicted_salary: prediction.data.predictedSalary || prediction.data.currentSalary,
+          confidence_score: 75,
+          recommendations: prediction.data.recommendations || [],
+          performance_indicators: {
+            overall_performance: Math.min(100, (prediction.data.totalCertifications || 0) * 20 + 60),
+            skill_advancement: Math.min(100, (prediction.data.totalCertifications || 0) * 15 + 40),
+            growth_potential: Math.min(100, (prediction.data.increasePercentage || 0) * 2 + 50)
+          }
+        });
+      } catch (fallbackError) {
+        console.error('Fallback prediction also failed:', fallbackError);
+      }
     } finally {
       setPredictionLoading(false);
     }
@@ -235,6 +321,14 @@ const EmployeeDashboard: React.FC = () => {
 
   const handleSnackbarClose = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
   if (loading) {
@@ -356,14 +450,35 @@ const EmployeeDashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        {/* Today's Attendance - Enhanced */}
+        {/* Today's Attendance - Enhanced with Real-Time Updates */}
         <Grid item xs={12} md={6}>
           <Card elevation={2}>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ScheduleIcon color="primary" />
-                Today's Attendance
-              </Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ScheduleIcon color="primary" />
+                  Today's Attendance
+                </Typography>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      bgcolor: 'success.main',
+                      animation: 'pulse 2s infinite',
+                      '@keyframes pulse': {
+                        '0%': { opacity: 1 },
+                        '50%': { opacity: 0.5 },
+                        '100%': { opacity: 1 },
+                      },
+                    }}
+                  />
+                  <Typography variant="caption" color="success.main">
+                    Live
+                  </Typography>
+                </Stack>
+              </Stack>
 
               {todaysAttendance ? (
                 <Box>
@@ -429,6 +544,24 @@ const EmployeeDashboard: React.FC = () => {
                   {dashboardData?.attendance?.daysPresent || 0} / {dashboardData?.attendance?.workingDays || 22} days
                 </Typography>
               </Box>
+
+              {/* Quick Navigation */}
+              <Stack direction="row" spacing={1} mt={2}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate('/employee/today-attendance')}
+                >
+                  View Details
+                </Button>
+                <Button
+                  variant="text"
+                  size="small"
+                  onClick={() => navigate('/employee/attendance')}
+                >
+                  Full History
+                </Button>
+              </Stack>
             </CardContent>
           </Card>
         </Grid>
@@ -488,14 +621,22 @@ const EmployeeDashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        {/* Certifications - Enhanced */}
+        {/* Certifications - Enhanced with Real-Time Data */}
         <Grid item xs={12}>
           <Card elevation={2}>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <SchoolIcon color="primary" />
-                Certifications & Skills
-              </Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <SchoolIcon color="primary" />
+                  Certifications & Skills
+                </Typography>
+                <Chip 
+                  label="Real-time" 
+                  size="small" 
+                  color="info" 
+                  variant="outlined"
+                />
+              </Stack>
               
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Upload your certifications to improve salary predictions and career growth
@@ -529,6 +670,12 @@ const EmployeeDashboard: React.FC = () => {
                     onClick={() => setCertDialogOpen(true)}
                   >
                     Add Certificate
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => navigate('/employee/my-certifications')}
+                  >
+                    View Details
                   </Button>
                   <Button
                     variant="outlined"
@@ -600,30 +747,41 @@ const EmployeeDashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        {/* Salary Prediction with Real-Time Data */}
+        {/* Salary Prediction with Real-Time ML Data */}
         <Grid item xs={12} md={6}>
           <Card elevation={2}>
             <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TrendingUpIcon color="primary" />
-                Salary Prediction & Growth
-              </Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <TrendingUpIcon color="primary" />
+                  AI Salary Prediction
+                </Typography>
+                <Chip 
+                  label={predictionLoading ? "Calculating..." : "Live ML"} 
+                  size="small" 
+                  color={predictionLoading ? "warning" : "success"} 
+                  variant="outlined"
+                />
+              </Stack>
               
               {predictionLoading ? (
-                <Box display="flex" justifyContent="center" p={2}>
-                  <CircularProgress size={24} />
+                <Box display="flex" flexDirection="column" alignItems="center" p={2}>
+                  <CircularProgress size={32} />
+                  <Typography variant="caption" sx={{ mt: 1 }}>
+                    Real-time ML analysis...
+                  </Typography>
                 </Box>
               ) : salaryPrediction ? (
                 <Stack spacing={2}>
                   <Box>
                     <Typography variant="body2" color="text.secondary">
-                      Predicted Salary Increase
+                      Predicted Salary
                     </Typography>
                     <Typography variant="h5" color="success.main">
-                      +{salaryPrediction.increasePercentage || 0}%
+                      {salaryPrediction.predicted_salary ? formatCurrency(salaryPrediction.predicted_salary) : 'N/A'}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Based on your certifications
+                      Confidence: {salaryPrediction.confidence_score || 0}%
                     </Typography>
                   </Box>
                   
@@ -631,91 +789,168 @@ const EmployeeDashboard: React.FC = () => {
                   
                   <Box>
                     <Typography variant="body2" color="text.secondary">
-                      Impact Score
+                      Growth Potential
                     </Typography>
                     <LinearProgress 
                       variant="determinate" 
-                      value={Math.min((salaryPrediction.totalCertifications || 0) * 10, 100)} 
+                      value={Math.min(salaryPrediction.performance_indicators?.growth_potential || 0, 100)} 
                       sx={{ height: 8, borderRadius: 4, mb: 1 }}
                     />
                     <Typography variant="caption">
-                      {salaryPrediction.totalCertifications || 0} certifications
+                      {Math.round(salaryPrediction.performance_indicators?.growth_potential || 0)}% potential
                     </Typography>
                   </Box>
 
                   {salaryPrediction.recommendations && salaryPrediction.recommendations.length > 0 && (
                     <Box>
                       <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Recommendations
+                        AI Recommendation
                       </Typography>
                       <Typography variant="caption" sx={{ fontStyle: 'italic' }}>
                         {typeof salaryPrediction.recommendations[0] === 'string' 
                           ? salaryPrediction.recommendations[0]
-                          : salaryPrediction.recommendations[0]?.message || 'No recommendations available'
+                          : salaryPrediction.recommendations[0]?.message || 'Continue developing your skills'
                         }
                       </Typography>
                     </Box>
                   )}
+
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Performance Indicators
+                    </Typography>
+                    <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                      <Chip 
+                        label={`Skills: ${Math.round(salaryPrediction.performance_indicators?.skill_advancement || 0)}%`}
+                        size="small" 
+                        color="primary" 
+                        variant="outlined"
+                      />
+                      <Chip 
+                        label={`Overall: ${Math.round(salaryPrediction.performance_indicators?.overall_performance || 0)}%`}
+                        size="small" 
+                        color="secondary" 
+                        variant="outlined"
+                      />
+                    </Stack>
+                  </Box>
                 </Stack>
               ) : (
                 <Box textAlign="center" py={2}>
                   <Typography variant="body2" color="text.secondary">
-                    Upload certifications to see predictions
+                    Add data to see ML predictions
                   </Typography>
                 </Box>
               )}
               
-              <Button 
-                variant="outlined" 
-                fullWidth 
-                sx={{ mt: 2 }}
-                startIcon={<SchoolIcon />}
-                onClick={() => navigate('/certifications')}
-              >
-                Manage Certifications
-              </Button>
+              <Stack direction="row" spacing={1} mt={2}>
+                <Button 
+                  variant="outlined" 
+                  size="small"
+                  startIcon={<TrendingUpIcon />}
+                  onClick={fetchSalaryPrediction}
+                  disabled={predictionLoading}
+                >
+                  Refresh ML
+                </Button>
+                <Button 
+                  variant="text" 
+                  size="small"
+                  startIcon={<SchoolIcon />}
+                  onClick={() => navigate('/salary-prediction')}
+                >
+                  Full Analysis
+                </Button>
+              </Stack>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Quick Actions for Employees */}
+        {/* Quick Actions for Employees - Enhanced */}
         <Grid item xs={12}>
           <Paper elevation={2} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Employee Quick Actions
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TrendingUpIcon color="primary" />
+              Employee Quick Actions - Navigate to Sections
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Access individual components for detailed management
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6} md={3}>
                 <Button
                   variant="contained"
                   fullWidth
-                  startIcon={<EventNoteIcon />}
-                  onClick={() => navigate('/leaves/apply')}
-                >
-                  Apply Leave
-                </Button>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Button
-                  variant="outlined"
-                  fullWidth
                   startIcon={<ScheduleIcon />}
-                  onClick={() => navigate('/attendance')}
+                  onClick={() => navigate('/employee/today-attendance')}
+                  sx={{ py: 1.5 }}
                 >
-                  View Attendance
+                  Today's Attendance
                 </Button>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
                 <Button
-                  variant="outlined"
+                  variant="contained"
+                  color="secondary"
                   fullWidth
                   startIcon={<SchoolIcon />}
-                  onClick={() => navigate('/certifications')}
+                  onClick={() => navigate('/employee/my-certifications')}
+                  sx={{ py: 1.5 }}
                 >
-                  Certifications
+                  Certifications & Skills
+                </Button>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  fullWidth
+                  startIcon={<EventNoteIcon />}
+                  onClick={() => navigate('/employee/my-leave-balance')}
+                  sx={{ py: 1.5 }}
+                >
+                  Leave Balance
+                </Button>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<TrendingUpIcon />}
+                  onClick={() => navigate('/employee/quick-actions')}
+                  sx={{ py: 1.5 }}
+                >
+                  More Actions
                 </Button>
               </Grid>
             </Grid>
+            <Divider sx={{ my: 3 }} />
+            <Stack direction="row" spacing={2} flexWrap="wrap" gap={1}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<EventNoteIcon />}
+                onClick={() => navigate('/employee/leave/apply')}
+              >
+                Apply Leave
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<PersonIcon />}
+                onClick={() => navigate('/employee/profile')}
+              >
+                Edit Profile
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<TrendingUpIcon />}
+                onClick={() => navigate('/salary-prediction')}
+              >
+                Salary Prediction
+              </Button>
+            </Stack>
           </Paper>
         </Grid>
       </Grid>

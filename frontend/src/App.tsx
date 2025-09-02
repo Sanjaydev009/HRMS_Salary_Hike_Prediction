@@ -18,6 +18,7 @@ import Profile from './pages/profile/ProfileSimple';
 import Settings from './pages/settings/Settings';
 import Login from './pages/auth/Login';
 import CertificationManager from './components/certifications/CertificationManager';
+import SalaryPredictionDashboard from './components/ml/SalaryPredictionDashboard';
 
 // Employee Management Components
 import EmployeeManagementLayout from './pages/employees/EmployeeManagementLayout';
@@ -34,6 +35,7 @@ import EmployeeLeaves from './pages/employee/EmployeeLeaves';
 import EmployeePayroll from './pages/employee/EmployeePayroll';
 import EmployeeLeaveApply from './pages/employee/EmployeeLeaveApply';
 import EmployeeLeaveBalance from './pages/employee/EmployeeLeaveBalance';
+import EmployeeQuickActions from './pages/employee/EmployeeQuickActions';
 import PlaceholderPage from './components/common/PlaceholderPage';
 
 function App() {
@@ -222,6 +224,15 @@ function App() {
               </ProtectedRoute>
             } />
             
+            {/* ML Salary Prediction Route */}
+            <Route path="/salary-prediction" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <SalaryPredictionDashboard />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+            
             {/* Settings Route */}
             <Route path="/settings" element={
               <ProtectedRoute>
@@ -303,7 +314,48 @@ function App() {
               </ProtectedRoute>
             } />
 
-            {/* Employee Routes */}
+            {/* Employee Routes - Updated for Dashboard Integration */}
+            <Route path="/employee/dashboard" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <Dashboard />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* Individual Employee Components - with real-time integration */}
+            <Route path="/employee/today-attendance" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <EmployeeMyAttendance />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/employee/my-certifications" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <CertificationManager />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/employee/my-leave-balance" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <EmployeeLeaveBalance />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/employee/quick-actions" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <EmployeeQuickActions />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+
             <Route path="/employee/profile" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
@@ -329,6 +381,14 @@ function App() {
             } />
 
             <Route path="/employee/leaves" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <EmployeeLeaves />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/employee/leave/history" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
                   <EmployeeLeaves />
