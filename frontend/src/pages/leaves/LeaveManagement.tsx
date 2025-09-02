@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store/store';
 import {
   Box,
   Typography,
@@ -92,9 +94,10 @@ const LeaveManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Mock current user role - in real app, get from auth context
-  const currentUserRole = localStorage.getItem('userRole') || 'employee';
-  const currentUserId = '1';
+  // Get user role from Redux store
+  const { user } = useSelector((state: RootState) => state.auth);
+  const currentUserRole = user?.role || 'employee';
+  const currentUserId = user?.id;
 
   // State for real-time data
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
@@ -103,10 +106,15 @@ const LeaveManagement: React.FC = () => {
   // Fetch leave balances from API
   const fetchLeaveBalances = async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch('/api/leaves/balance/me', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -116,7 +124,23 @@ const LeaveManagement: React.FC = () => {
       }
 
       const data = await response.json();
-      setLeaveBalances(data.balances || []);
+      console.log('Balance API Response:', data); // Debug log
+      
+      if (data.success && data.data && data.data.leaveBalance) {
+        // Transform API data to match our interface
+        const balances = Object.entries(data.data.leaveBalance).map(([leaveType, balance]: [string, any]) => ({
+          leaveType: leaveType.charAt(0).toUpperCase() + leaveType.slice(1),
+          allocated: balance.total || balance.allocated || 0,
+          used: balance.used || 0,
+          pending: 0, // This would need to be calculated or provided by API
+          available: balance.remaining || balance.available || 0,
+        }));
+        
+        setLeaveBalances(balances);
+      } else {
+        console.error('Unexpected balance API response structure:', data);
+        setLeaveBalances([]);
+      }
       
     } catch (err) {
       console.error('Error fetching leave balances:', err);
@@ -130,10 +154,15 @@ const LeaveManagement: React.FC = () => {
   // Fetch leave requests from API
   const fetchLeaveRequests = async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch('/api/leaves', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -143,17 +172,32 @@ const LeaveManagement: React.FC = () => {
       }
 
       const data = await response.json();
+      console.log('API Response:', data); // Debug log
       
-      // Transform API data to match our interface
-      const transformedRequests = data.requests?.map((request: any) => ({
-        ...request,
-        startDate: dayjs(request.startDate),
-        endDate: dayjs(request.endDate),
-        appliedDate: dayjs(request.appliedDate),
-        approvedDate: request.approvedDate ? dayjs(request.approvedDate) : undefined,
-      })) || [];
+      if (data.success && data.data && data.data.leaves) {
+        // Transform API data to match our interface
+        const transformedRequests = data.data.leaves.map((leave: any) => ({
+          id: leave._id,
+          employeeId: leave.employeeId._id,
+          employeeName: `${leave.employeeId.profile.firstName} ${leave.employeeId.profile.lastName}`,
+          leaveType: leave.leaveType,
+          startDate: dayjs(leave.startDate),
+          endDate: dayjs(leave.endDate),
+          duration: leave.numberOfDays,
+          reason: leave.reason,
+          status: leave.status.charAt(0).toUpperCase() + leave.status.slice(1), // Capitalize status
+          appliedDate: dayjs(leave.appliedDate || leave.createdAt),
+          approvedBy: leave.approvedBy ? `${leave.approvedBy.profile.firstName} ${leave.approvedBy.profile.lastName}` : undefined,
+          approvedDate: leave.approvedDate ? dayjs(leave.approvedDate) : undefined,
+          comments: leave.rejectionReason || leave.comments,
+        }));
 
-      setLeaveRequests(transformedRequests);
+        setLeaveRequests(transformedRequests);
+        console.log('Transformed requests:', transformedRequests); // Debug log
+      } else {
+        console.error('Unexpected API response structure:', data);
+        setLeaveRequests([]);
+      }
       
     } catch (err) {
       console.error('Error fetching leave requests:', err);
@@ -200,10 +244,15 @@ const LeaveManagement: React.FC = () => {
 
   const handleApproveRequest = async (id: string) => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch(`/api/leaves/${id}/approve`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -226,10 +275,15 @@ const LeaveManagement: React.FC = () => {
 
   const handleRejectRequest = async (id: string) => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch(`/api/leaves/${id}/approve`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -432,7 +486,31 @@ const LeaveManagement: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredRequests.map((request) => (
+                  {filteredRequests.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                        <Typography variant="body1" color="text.secondary">
+                          {loading ? 'Loading leave requests...' : 
+                           error ? 'Error loading requests. Please try again.' :
+                           'No leave requests found.'}
+                        </Typography>
+                        {error && (
+                          <Button 
+                            variant="outlined" 
+                            size="small" 
+                            onClick={() => {
+                              setError(null);
+                              fetchLeaveRequests();
+                            }}
+                            sx={{ mt: 1 }}
+                          >
+                            Retry
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredRequests.map((request) => (
                     <TableRow key={request.id}>
                       {(currentUserRole === 'hr' || currentUserRole === 'manager' || currentUserRole === 'admin') && (
                         <TableCell>{request.employeeName}</TableCell>
@@ -483,7 +561,7 @@ const LeaveManagement: React.FC = () => {
                         )}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )))}
                 </TableBody>
               </Table>
             </TableContainer>

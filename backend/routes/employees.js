@@ -469,4 +469,163 @@ router.post('/:id/performance', auth, authorize('hr', 'admin'), async (req, res)
   }
 });
 
+// @route   GET /api/employees/departments
+// @desc    Get all departments with employee information
+// @access  Private (HR/Admin)
+router.get('/departments', auth, authorize(['hr', 'admin']), async (req, res) => {
+  try {
+    // Get all departments with employee data
+    const departmentData = await User.aggregate([
+      {
+        $match: { 
+          role: { $in: ['employee'] },
+          status: 'active' 
+        }
+      },
+      {
+        $group: {
+          _id: '$jobDetails.department',
+          employees: {
+            $push: {
+              _id: '$_id',
+              firstName: '$profile.firstName',
+              lastName: '$profile.lastName',
+              email: '$email',
+              position: '$jobDetails.designation',
+              joiningDate: '$jobDetails.joiningDate',
+              salary: '$jobDetails.salary.basic'
+            }
+          },
+          totalEmployees: { $sum: 1 },
+          avgSalary: { $avg: '$jobDetails.salary.basic' },
+          newHires: {
+            $sum: {
+              $cond: [
+                { 
+                  $gte: [
+                    '$jobDetails.joiningDate', 
+                    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+                  ] 
+                },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      },
+      {
+        $sort: { totalEmployees: -1 }
+      }
+    ]);
+
+    // Transform data to match expected format
+    const departments = departmentData.map(dept => {
+      // Find department manager (mock logic - you can enhance this)
+      const manager = dept.employees.find(emp => 
+        emp.position && emp.position.toLowerCase().includes('manager')
+      );
+
+      return {
+        _id: dept._id || 'Unknown',
+        name: dept._id || 'Unassigned',
+        description: `${dept._id} department with ${dept.totalEmployees} employees`,
+        manager: manager ? {
+          _id: manager._id,
+          firstName: manager.firstName,
+          lastName: manager.lastName,
+          email: manager.email
+        } : null,
+        employees: dept.employees,
+        budget: dept.avgSalary * dept.totalEmployees * 12, // Annual budget estimate
+        location: 'Head Office', // Mock data
+        createdAt: new Date(),
+        stats: {
+          totalEmployees: dept.totalEmployees,
+          avgSalary: dept.avgSalary || 0,
+          newHires: dept.newHires,
+          openPositions: Math.floor(Math.random() * 3) // Mock data
+        }
+      };
+    });
+
+    res.json({
+      success: true,
+      departments,
+      total: departments.length,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Get departments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/employees/departments
+// @desc    Create new department
+// @access  Private (HR/Admin)
+router.post('/departments', auth, authorize(['hr', 'admin']), async (req, res) => {
+  try {
+    const { name, description, manager, budget, location } = req.body;
+
+    // For now, we'll track departments through employee records
+    // You might want to create a separate Department model later
+    
+    res.json({
+      success: true,
+      message: 'Department creation functionality will be enhanced with dedicated Department model',
+      data: { name, description, manager, budget, location }
+    });
+  } catch (error) {
+    console.error('Create department error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// @route   PUT /api/employees/departments/:id
+// @desc    Update department
+// @access  Private (HR/Admin)
+router.put('/departments/:id', auth, authorize(['hr', 'admin']), async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Department update functionality will be enhanced with dedicated Department model'
+    });
+  } catch (error) {
+    console.error('Update department error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// @route   DELETE /api/employees/departments/:id
+// @desc    Delete department
+// @access  Private (Admin only)
+router.delete('/departments/:id', auth, authorize(['admin']), async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Department deletion functionality will be enhanced with dedicated Department model'
+    });
+  } catch (error) {
+    console.error('Delete department error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

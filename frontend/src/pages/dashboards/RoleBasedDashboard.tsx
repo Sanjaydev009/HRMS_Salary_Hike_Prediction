@@ -2,7 +2,7 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
 import EmployeeDashboard from './EmployeeDashboard';
-import HRDashboard from './HRDashboard';
+import ProfessionalHRDashboard from './ProfessionalHRDashboard';
 import AdminDashboard from './AdminDashboard';
 import { Box, Alert, CircularProgress } from '@mui/material';
 
@@ -32,7 +32,7 @@ const RoleBasedDashboard: React.FC = () => {
     case 'employee':
       return <EmployeeDashboard />;
     case 'hr':
-      return <HRDashboard />;
+      return <ProfessionalHRDashboard />;
     case 'admin':
       return <AdminDashboard />;
     default:

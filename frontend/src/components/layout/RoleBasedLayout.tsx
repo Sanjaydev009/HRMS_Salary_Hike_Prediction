@@ -246,8 +246,8 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
             text: 'Employee Management',
             icon: <PeopleIcon />,
             children: [
-              { text: 'All Employees', icon: <Group />, path: '/hr/employees' },
-              { text: 'Add New Employee', icon: <PersonAdd />, path: '/hr/employees/add' },
+              { text: 'All Employees', icon: <Group />, path: '/employees' },
+              { text: 'Add New Employee', icon: <PersonAdd />, path: '/employees/new' },
               { text: 'Employee Profiles', icon: <PersonIcon />, path: '/hr/profiles' },
               { text: 'Onboarding Process', icon: <HowToReg />, path: '/hr/onboarding' },
               { text: 'Employee Documents', icon: <Assignment />, path: '/hr/documents' },
@@ -258,9 +258,9 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
             text: 'Leave & Attendance',
             icon: <EventNoteIcon />,
             children: [
-              { text: 'Leave Requests', icon: <RequestPage />, path: '/hr/leaves' },
+              { text: 'Leave Requests', icon: <RequestPage />, path: '/leaves' },
               { text: 'Attendance Overview', icon: <Schedule />, path: '/hr/attendance' },
-              { text: 'Leave Calendar', icon: <CalendarMonth />, path: '/hr/leave-calendar' },
+              { text: 'Leave Calendar', icon: <CalendarMonth />, path: '/leaves/calendar' },
               { text: 'Leave Policies', icon: <PostAdd />, path: '/hr/leave-policies' },
               { text: 'Holiday Management', icon: <DateRange />, path: '/hr/holidays' },
               { text: 'Overtime Approvals', icon: <MoreTime />, path: '/hr/overtime' },
@@ -270,8 +270,9 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
             text: 'Payroll & Compensation',
             icon: <PaymentIcon />,
             children: [
-              { text: 'Payroll Processing', icon: <MonetizationOn />, path: '/hr/payroll' },
-              { text: 'Salary Management', icon: <Calculate />, path: '/hr/salary-management' },
+              { text: 'Payroll Processing', icon: <MonetizationOn />, path: '/payroll' },
+              { text: 'Salary Management', icon: <Calculate />, path: '/payroll/calculator' },
+              { text: 'Payslip Viewer', icon: <Receipt />, path: '/payroll/payslips' },
               { text: 'Bonus & Incentives', icon: <AttachMoney />, path: '/hr/bonuses' },
               { text: 'Tax Processing', icon: <Receipt />, path: '/hr/tax-processing' },
               { text: 'Benefits Administration', icon: <Savings />, path: '/hr/benefits' },
@@ -313,7 +314,7 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
             text: 'HR Analytics & Reports',
             icon: <AnalyticsIcon />,
             children: [
-              { text: 'HR Dashboard', icon: <PieChart />, path: '/hr/analytics' },
+              { text: 'HR Analytics', icon: <PieChart />, path: '/analytics' },
               { text: 'Employee Reports', icon: <Assessment />, path: '/hr/reports' },
               { text: 'Attendance Reports', icon: <Schedule />, path: '/hr/attendance-reports' },
               { text: 'Payroll Reports', icon: <Receipt />, path: '/hr/payroll-reports' },

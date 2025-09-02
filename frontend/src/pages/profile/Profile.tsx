@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -13,6 +13,7 @@ import {
   FormControlLabel,
   Chip,
   Stack,
+  CircularProgress,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -22,19 +23,21 @@ import {
   Phone as PhoneIcon,
   LocationOn as LocationIcon,
 } from '@mui/icons-material';
+import authService from '../../services/authService';
 
 const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@company.com',
-    phone: '+1 (555) 123-4567',
-    department: 'Engineering',
-    position: 'Senior Developer',
-    location: 'New York, NY',
-    joinDate: '2023-01-15',
-    employeeId: 'EMP001',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    department: '',
+    position: '',
+    location: '',
+    joinDate: '',
+    employeeId: '',
     profilePicture: '',
   });
 
@@ -44,6 +47,36 @@ const Profile: React.FC = () => {
     twoFactorAuth: false,
     darkMode: false,
   });
+
+  // Fetch current user data
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        const response = await authService.getCurrentUser();
+        const userData = response.user;
+        
+        setUserProfile({
+          firstName: userData.profile?.firstName || '',
+          lastName: userData.profile?.lastName || '',
+          email: userData.email || '',
+          phone: userData.profile?.phone || '',
+          department: userData.jobDetails?.department || '',
+          position: userData.jobDetails?.designation || '',
+          location: userData.jobDetails?.workLocation || '',
+          joinDate: userData.jobDetails?.joiningDate ? new Date(userData.jobDetails.joiningDate).toLocaleDateString() : '',
+          employeeId: userData.employeeId || '',
+          profilePicture: userData.profile?.profilePicture || '',
+        });
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   const handleSave = () => {
     // Here you would typically save to the backend
@@ -78,6 +111,12 @@ const Profile: React.FC = () => {
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         Manage your personal information and preferences
       </Typography>
+
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+          <CircularProgress size={60} />
+        </Box>
+      ) : (
 
       <Grid container spacing={3}>
         {/* Profile Information */}
@@ -214,7 +253,7 @@ const Profile: React.FC = () => {
                   bgcolor: 'primary.main'
                 }}
               >
-                {userProfile.firstName[0]}{userProfile.lastName[0]}
+                {userProfile.firstName?.[0]}{userProfile.lastName?.[0]}
               </Avatar>
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
                 {userProfile.firstName} {userProfile.lastName}
@@ -296,6 +335,7 @@ const Profile: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
+      )}
     </Box>
   );
 };

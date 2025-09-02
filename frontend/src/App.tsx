@@ -11,29 +11,30 @@ import { AuthProvider } from './contexts/AuthContext';
 
 // Page Components
 import Dashboard from './pages/dashboards/RoleBasedDashboard';
-import EmployeeList from './pages/employees/EmployeeListModern';
-import EmployeeForm from './components/employees/EmployeeForm';
+import ModernEmployeeManagement from './pages/employees/ModernEmployeeManagement';
 import LeaveManagement from './pages/leaves/LeaveManagement';
 import PayrollManagement from './pages/payroll/PayrollManagement';
-import Profile from './pages/profile/Profile';
+import Profile from './pages/profile/ProfileSimple';
 import Settings from './pages/settings/Settings';
 import Login from './pages/auth/Login';
-import TestRoles from './pages/TestRoles';
+import NavigationTest from './pages/NavigationTest';
+import AppDebugInfo from './components/debug/AppDebugInfo';
+
+// Employee Management Components
+import EmployeeManagementLayout from './pages/employees/EmployeeManagementLayout';
+import EmployeeDirectoryModern from './pages/employees/EmployeeDirectoryModern';
+import EmployeeDepartmentsModern from './pages/employees/EmployeeDepartmentsModern';
+import EmployeeAnalyticsModern from './pages/employees/EmployeeAnalyticsModern';
+import EmployeeAttendanceModern from './pages/employees/EmployeeAttendanceModern';
+import IntegratedEmployeeManagement from './components/employees/IntegratedEmployeeManagement';
 
 // Employee Pages
 import EmployeeProfile from './pages/employee/EmployeeProfile';
-import EmployeeAttendance from './pages/employee/EmployeeAttendance';
+import EmployeeMyAttendance from './pages/employee/EmployeeAttendance';
 import EmployeeLeaves from './pages/employee/EmployeeLeaves';
 import EmployeePayroll from './pages/employee/EmployeePayroll';
-import EmployeeLearning from './pages/employee/EmployeeLearning';
-import EmployeeTeam from './pages/employee/EmployeeTeam';
-import EmployeeDocuments from './pages/employee/EmployeeDocuments';
-import EmployeeEmergencyContacts from './pages/employee/EmployeeEmergencyContacts';
-import EmployeeBankDetails from './pages/employee/EmployeeBankDetails';
-import EmployeeMyAttendance from './pages/employee/EmployeeMyAttendance';
 import EmployeeLeaveApply from './pages/employee/EmployeeLeaveApply';
 import EmployeeLeaveBalance from './pages/employee/EmployeeLeaveBalance';
-import EmployeeHolidays from './pages/employee/EmployeeHolidays';
 import PlaceholderPage from './components/common/PlaceholderPage';
 
 function App() {
@@ -47,11 +48,20 @@ function App() {
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             
+            {/* Debug Route */}
+            <Route path="/debug" element={<AppDebugInfo />} />
+            
             {/* Root redirect to login if not authenticated */}
             <Route path="/" element={<Navigate to="/login" replace />} />
             
-            {/* Test Roles Route - No Auth Required */}
-            <Route path="/test-roles" element={<TestRoles />} />
+            {/* Navigation Test Route */}
+            <Route path="/nav-test" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <NavigationTest />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
             
             {/* Protected Routes with Role-Based Layout */}
             <Route path="/dashboard/*" element={
@@ -70,54 +80,55 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* Employee Management Routes */}
+            {/* Employee Management Routes with Integrated Layout */}
             <Route path="/employees" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeList />
+                  <IntegratedEmployeeManagement />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
             
-            <Route path="/employees/new" element={
+            <Route path="/employees/*" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-                    <EmployeeForm
-                      open={true}
-                      onClose={() => window.history.back()}
-                      onSave={(employee) => {
-                        console.log('Employee saved:', employee);
-                        window.history.back();
-                      }}
-                      employee={null}
-                      mode="add"
-                      currentUserRole="hr"
-                    />
-                  </Box>
+                  <EmployeeManagementLayout />
                 </RoleBasedLayout>
               </ProtectedRoute>
-            } />
-            
-            <Route path="/employees/edit/:id" element={
-              <ProtectedRoute>
-                <RoleBasedLayout>
-                  <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-                    <EmployeeForm
-                      open={true}
-                      onClose={() => window.history.back()}
-                      onSave={(employee) => {
-                        console.log('Employee updated:', employee);
-                        window.history.back();
-                      }}
-                      employee={null}
-                      mode="edit"
-                      currentUserRole="hr"
-                    />
-                  </Box>
-                </RoleBasedLayout>
-              </ProtectedRoute>
-            } />
+            }>
+              {/* Employee Management Sub-routes */}
+              <Route index element={<ModernEmployeeManagement />} />
+              <Route path="new" element={<ModernEmployeeManagement />} />
+              <Route path="edit/:id" element={<ModernEmployeeManagement />} />
+              <Route path="directory" element={<EmployeeDirectoryModern />} />
+              <Route path="departments" element={<EmployeeDepartmentsModern />} />
+              <Route path="analytics" element={<EmployeeAnalyticsModern />} />
+              <Route path="attendance" element={<EmployeeAttendanceModern />} />
+              <Route path="org-chart" element={
+                <PlaceholderPage 
+                  title="Organization Chart" 
+                  description="Visual representation of organizational hierarchy and reporting structure" 
+                />
+              } />
+              <Route path="training" element={
+                <PlaceholderPage 
+                  title="Training & Development" 
+                  description="Manage employee training programs and development initiatives" 
+                />
+              } />
+              <Route path="performance" element={
+                <PlaceholderPage 
+                  title="Performance Reviews" 
+                  description="Employee performance management and review system" 
+                />
+              } />
+              <Route path="permissions" element={
+                <PlaceholderPage 
+                  title="Roles & Permissions" 
+                  description="Manage user roles and access permissions (Admin only)" 
+                />
+              } />
+            </Route>
             
             {/* Leave Management Routes */}
             <Route path="/leaves" element={
@@ -238,9 +249,57 @@ function App() {
                   }}>
                     <Box sx={{ fontSize: '3rem' }}>📊</Box>
                     <Box sx={{ textAlign: 'center' }}>
-                      <h2 style={{ margin: 0, color: theme.palette.text.primary }}>Analytics Dashboard</h2>
+                      <h2 style={{ margin: 0, color: theme.palette.text.primary }}>HR Analytics Dashboard</h2>
                       <p style={{ color: theme.palette.text.secondary, margin: '8px 0 0 0' }}>
-                        Advanced analytics and reporting features
+                        Advanced HR analytics and reporting features
+                      </p>
+                    </Box>
+                  </Box>
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* HR Management Routes */}
+            <Route path="/hr/*" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    minHeight: '60vh',
+                    flexDirection: 'column',
+                    gap: 2
+                  }}>
+                    <Box sx={{ fontSize: '3rem' }}>👥</Box>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <h2 style={{ margin: 0, color: theme.palette.text.primary }}>HR Management</h2>
+                      <p style={{ color: theme.palette.text.secondary, margin: '8px 0 0 0' }}>
+                        HR-specific management features coming soon
+                      </p>
+                    </Box>
+                  </Box>
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* Admin Management Routes */}
+            <Route path="/admin/*" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    minHeight: '60vh',
+                    flexDirection: 'column',
+                    gap: 2
+                  }}>
+                    <Box sx={{ fontSize: '3rem' }}>⚙️</Box>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <h2 style={{ margin: 0, color: theme.palette.text.primary }}>Admin Panel</h2>
+                      <p style={{ color: theme.palette.text.secondary, margin: '8px 0 0 0' }}>
+                        Administrative management features
                       </p>
                     </Box>
                   </Box>
@@ -260,7 +319,7 @@ function App() {
             <Route path="/employee/attendance" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeAttendance />
+                  <EmployeeMyAttendance />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -300,7 +359,10 @@ function App() {
             <Route path="/employee/holidays" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeHolidays />
+                  <PlaceholderPage 
+                    title="Company Holidays" 
+                    description="View company holidays and public holidays calendar" 
+                  />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -316,7 +378,10 @@ function App() {
             <Route path="/employee/training" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeLearning />
+                  <PlaceholderPage 
+                    title="Training & Learning" 
+                    description="Access your training programs and learning resources" 
+                  />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -324,7 +389,10 @@ function App() {
             <Route path="/employee/certifications" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeLearning />
+                  <PlaceholderPage 
+                    title="Certifications" 
+                    description="Manage your professional certifications" 
+                  />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -332,7 +400,10 @@ function App() {
             <Route path="/employee/team" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeTeam />
+                  <PlaceholderPage 
+                    title="My Team" 
+                    description="View team members and collaboration tools" 
+                  />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -340,7 +411,10 @@ function App() {
             <Route path="/employee/announcements" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeTeam />
+                  <PlaceholderPage 
+                    title="Announcements" 
+                    description="View company announcements and news" 
+                  />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -360,7 +434,10 @@ function App() {
             <Route path="/employee/emergency-contacts" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeEmergencyContacts />
+                  <PlaceholderPage 
+                    title="Emergency Contacts" 
+                    description="Manage your emergency contact information" 
+                  />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -368,7 +445,10 @@ function App() {
             <Route path="/employee/documents" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeDocuments />
+                  <PlaceholderPage 
+                    title="My Documents" 
+                    description="Access and manage your personal documents" 
+                  />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -376,7 +456,10 @@ function App() {
             <Route path="/employee/bank-details" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeBankDetails />
+                  <PlaceholderPage 
+                    title="Bank Details" 
+                    description="Manage your banking information for payroll" 
+                  />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -491,7 +574,10 @@ function App() {
             <Route path="/employee/skills" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeLearning />
+                  <PlaceholderPage 
+                    title="My Skills" 
+                    description="Manage your skills and competencies" 
+                  />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -499,7 +585,10 @@ function App() {
             <Route path="/employee/career-path" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeLearning />
+                  <PlaceholderPage 
+                    title="Career Development" 
+                    description="Explore your career growth opportunities" 
+                  />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -507,7 +596,10 @@ function App() {
             <Route path="/employee/directory" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <EmployeeTeam />
+                  <PlaceholderPage 
+                    title="Employee Directory" 
+                    description="Search and connect with colleagues" 
+                  />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />

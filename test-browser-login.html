@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Browser Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #007bff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HRMS Login Test - Browser Simulation</h1>
+        <p>This test simulates multiple login attempts through the browser to diagnose the "Login failed" issue.</p>
+        
+        <div>
+            <button onclick="testSingleLogin()">Test Single Login</button>
+            <button onclick="testMultipleLogins()">Test Multiple Rapid Logins</button>
+            <button onclick="testWithDelay()">Test Multiple Logins with Delay</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+        
+        <div id="log" class="log">Waiting for test...</div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5173/api'; // Through Vite proxy
+        const TEST_CREDENTIALS = {
+            email: 'hr.manager@gmail.com',
+            password: 'hrmanager123'
+        };
+
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            logElement.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = 'Log cleared...\n';
+        }
+
+        async function makeLoginRequest(attemptNumber) {
+            try {
+                log(`🔄 Attempt ${attemptNumber}: Starting login request...`);
+                
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(TEST_CREDENTIALS)
+                });
+                
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    log(`✅ Attempt ${attemptNumber}: SUCCESS (${duration}ms) - Status: ${response.status}`, 'success');
+                    log(`   Token received: ${data.data.token.substring(0, 50)}...`, 'success');
+                    log(`   User: ${data.data.user.profile.firstName} ${data.data.user.profile.lastName} (${data.data.user.role})`, 'success');
+                    return { success: true, data, duration, status: response.status };
+                } else {
+                    log(`❌ Attempt ${attemptNumber}: FAILED (${duration}ms) - Status: ${response.status}`, 'error');
+                    log(`   Error: ${data.message || 'Unknown error'}`, 'error');
+                    return { success: false, error: data.message, duration, status: response.status };
+                }
+            } catch (error) {
+                log(`💥 Attempt ${attemptNumber}: NETWORK ERROR - ${error.message}`, 'error');
+                return { success: false, error: error.message, duration: 0, status: 0 };
+            }
+        }
+
+        async function testSingleLogin() {
+            log('🚀 Starting single login test...', 'info');
+            clearLog();
+            
+            const result = await makeLoginRequest(1);
+            
+            if (result.success) {
+                log('\n🎉 Single login test PASSED!', 'success');
+            } else {
+                log('\n💥 Single login test FAILED!', 'error');
+            }
+        }
+
+        async function testMultipleLogins() {
+            log('🚀 Starting multiple rapid login test (5 attempts)...', 'info');
+            clearLog();
+            
+            const results = [];
+            const promises = [];
+            
+            // Fire all requests simultaneously
+            for (let i = 1; i <= 5; i++) {
+                promises.push(makeLoginRequest(i));
+            }
+            
+            try {
+                const responses = await Promise.all(promises);
+                results.push(...responses);
+            } catch (error) {
+                log(`💥 Promise.all error: ${error.message}`, 'error');
+            }
+            
+            // Summary
+            const successful = results.filter(r => r.success).length;
+            const failed = results.filter(r => !r.success).length;
+            const avgDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+            
+            log(`\n📊 SUMMARY:`, 'info');
+            log(`   ✅ Successful: ${successful}/5`, successful === 5 ? 'success' : 'error');
+            log(`   ❌ Failed: ${failed}/5`, failed === 0 ? 'success' : 'error');
+            log(`   ⏱️ Average duration: ${avgDuration.toFixed(0)}ms`, 'info');
+            
+            if (successful === 5) {
+                log('\n🎉 Multiple rapid login test PASSED!', 'success');
+            } else {
+                log('\n💥 Multiple rapid login test FAILED!', 'error');
+                log('This might indicate rate limiting or concurrency issues.', 'error');
+            }
+        }
+
+        async function testWithDelay() {
+            log('🚀 Starting multiple login test with delays (5 attempts, 1s delay)...', 'info');
+            clearLog();
+            
+            const results = [];
+            
+            for (let i = 1; i <= 5; i++) {
+                const result = await makeLoginRequest(i);
+                results.push(result);
+                
+                if (i < 5) {
+                    log(`⏳ Waiting 1 second before next attempt...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+            
+            // Summary
+            const successful = results.filter(r => r.success).length;
+            const failed = results.filter(r => !r.success).length;
+            const avgDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+            
+            log(`\n📊 SUMMARY:`, 'info');
+            log(`   ✅ Successful: ${successful}/5`, successful === 5 ? 'success' : 'error');
+            log(`   ❌ Failed: ${failed}/5`, failed === 0 ? 'success' : 'error');
+            log(`   ⏱️ Average duration: ${avgDuration.toFixed(0)}ms`, 'info');
+            
+            if (successful === 5) {
+                log('\n🎉 Multiple login test with delays PASSED!', 'success');
+            } else {
+                log('\n💥 Multiple login test with delays FAILED!', 'error');
+            }
+        }
+
+        // Test server connectivity on page load
+        window.onload = async function() {
+            log('🔗 Testing server connectivity...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Server is running: ${data.message}`, 'success');
+                    log(`   Timestamp: ${data.timestamp}`, 'info');
+                    log(`   Rate limit remaining: ${response.headers.get('X-RateLimit-Remaining')}`, 'info');
+                } else {
+                    log(`❌ Server responded with status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`💥 Cannot connect to server: ${error.message}`, 'error');
+                log('❗ Make sure the backend is running on port 5001 and frontend on port 5173', 'error');
+            }
+        };
+    </script>
+</body>
+</html>
