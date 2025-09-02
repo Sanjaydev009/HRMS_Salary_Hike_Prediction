@@ -288,7 +288,7 @@ router.get('/salary-prediction', auth, async (req, res) => {
       status: 'Active'
     });
 
-    const currentSalary = user.jobDetails?.salary?.basic || 0;
+    const currentSalary = user.jobDetails?.salary?.basic || 600000; // Default 6 Lakhs INR
     
     // Calculate total impact using our new model
     let totalImpact = 0;

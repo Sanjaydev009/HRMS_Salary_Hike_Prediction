@@ -97,6 +97,9 @@ app.use('/api/profile', require('./routes/profile'));
 app.use('/api/certifications', require('./routes/certifications'));
 app.use('/api/attendance', require('./routes/attendance'));
 
+// ML Integration routes
+app.use('/api/ml', require('./routes/ml-integration'));
+
 // Static files for uploads
 app.use('/uploads', express.static('uploads'));
 

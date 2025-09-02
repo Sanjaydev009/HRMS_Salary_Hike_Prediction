@@ -186,7 +186,7 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
           {
             text: 'Employee Management',
             icon: <PeopleIcon />,
-            path: '/hr/employees',
+            path: '/employees',
           },
           {
             text: 'Leave Management',
@@ -202,6 +202,7 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
             children: [
               { text: 'Process Payroll', icon: <MonetizationOn />, path: '/payroll' },
               { text: 'Payslips', icon: <Receipt />, path: '/payroll/payslips' },
+              { text: 'Salary Calculator', icon: <Calculate />, path: '/payroll/calculator' },
             ],
           },
           {
@@ -225,14 +226,24 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
             path: '/dashboard',
           },
           {
+            text: 'Today\'s Attendance',
+            icon: <Schedule />,
+            path: '/employee/today-attendance',
+          },
+          {
             text: 'My Profile',
             icon: <PersonIcon />,
             path: '/employee/profile',
           },
           {
-            text: 'Attendance',
-            icon: <Schedule />,
-            path: '/employee/attendance',
+            text: 'Certifications & Skills',
+            icon: <School />,
+            path: '/employee/my-certifications',
+          },
+          {
+            text: 'Leave Balance',
+            icon: <EventNoteIcon />,
+            path: '/employee/my-leave-balance',
           },
           {
             text: 'Apply Leave',
@@ -242,12 +253,12 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
           {
             text: 'My Leaves',
             icon: <EventNoteIcon />,
-            path: '/employee/leave/history',
+            path: '/employee/leaves',
           },
           {
-            text: 'Certifications',
-            icon: <School />,
-            path: '/certifications',
+            text: 'Quick Actions',
+            icon: <TrendingUp />,
+            path: '/employee/quick-actions',
           },
           {
             text: 'Payroll',
