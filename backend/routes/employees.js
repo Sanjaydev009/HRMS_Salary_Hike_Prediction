@@ -1,6 +1,7 @@
 const express = require('express');
 const User = require('../models/User');
 const { auth, authorize } = require('../middleware/auth');
+const emailService = require('../services/emailService');
 const router = express.Router();
 
 // @route   GET /api/employees
@@ -122,7 +123,7 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // @route   POST /api/employees
-// @desc    Create new employee
+// @desc    Create new employee with email credentials
 // @access  Public (temporarily for testing)
 router.post('/', async (req, res) => {
   try {
@@ -131,12 +132,28 @@ router.post('/', async (req, res) => {
     const {
       employeeId,
       email,
-      password = 'defaultPassword123',
+      password,
       role = 'employee',
       profile,
       jobDetails,
-      emergencyContact
+      emergencyContact,
+      status = 'active'
     } = req.body;
+
+    // Validate required fields
+    if (!employeeId || !email || !profile?.firstName || !profile?.lastName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: employeeId, email, firstName, lastName'
+      });
+    }
+
+    if (!jobDetails?.department || !jobDetails?.designation) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required job details: department, designation'
+      });
+    }
 
     // Check if employee ID already exists
     const existingEmployee = await User.findOne({ employeeId });
@@ -156,19 +173,99 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Use provided password or generate temporary password
+    const finalPassword = password || emailService.generateTempPassword();
+
+    // Process profile data - handle address properly
+    const processedProfile = {
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      phone: profile.phone || '',
+      dateOfBirth: profile.dateOfBirth ? new Date(profile.dateOfBirth) : undefined
+    };
+
+    // Handle address - convert string to object if needed
+    if (profile.address) {
+      if (typeof profile.address === 'string') {
+        processedProfile.address = {
+          street: profile.address,
+          city: '',
+          state: '',
+          zipCode: '',
+          country: ''
+        };
+      } else {
+        processedProfile.address = profile.address;
+      }
+    }
+
+    // Process job details
+    let processedJobDetails = {
+      department: jobDetails.department,
+      designation: jobDetails.designation,
+      joiningDate: jobDetails.joiningDate ? new Date(jobDetails.joiningDate) : new Date(),
+      employmentType: jobDetails.employmentType || 'full-time',
+      workLocation: jobDetails.workLocation || 'Office',
+      salary: {
+        basic: jobDetails.salary?.basic || 0,
+        allowances: jobDetails.salary?.allowances || 0,
+        currency: jobDetails.salary?.currency || 'INR'
+      }
+    };
+
+    // Handle reporting manager
+    if (jobDetails.reportingManager && typeof jobDetails.reportingManager === 'string') {
+      processedJobDetails.reportingManager = null;
+    } else if (jobDetails.reportingManager) {
+      processedJobDetails.reportingManager = jobDetails.reportingManager;
+    }
+
     // Create new employee
     const employee = new User({
       employeeId,
-      email,
-      password,
+      email: email.toLowerCase(),
+      password: finalPassword,
       role,
-      profile,
-      jobDetails,
-      emergencyContact,
-      status: 'active'
+      profile: processedProfile,
+      jobDetails: processedJobDetails,
+      emergencyContact: emergencyContact || {},
+      status,
+      isFirstLogin: true
+    });
+
+    console.log('Creating employee with processed data:', {
+      employeeId: employee.employeeId,
+      email: employee.email,
+      profile: employee.profile,
+      jobDetails: employee.jobDetails
     });
 
     await employee.save();
+
+    // Prepare email data
+    const emailData = {
+      employeeId,
+      email,
+      fullName: `${processedProfile.firstName} ${processedProfile.lastName}`,
+      department: processedJobDetails.department,
+      position: processedJobDetails.designation,
+      joiningDate: processedJobDetails.joiningDate
+    };
+
+    // Send welcome email with credentials
+    try {
+      const emailResult = await emailService.sendWelcomeEmail(emailData, finalPassword);
+      console.log('Email send result:', emailResult);
+      
+      if (emailResult.success) {
+        console.log('Welcome email sent successfully to:', email);
+      } else {
+        console.error('Failed to send welcome email:', emailResult.error);
+      }
+    } catch (emailError) {
+      console.error('Email service error:', emailError);
+      // Don't fail the employee creation if email fails
+    }
 
     // Remove password from response
     const employeeResponse = employee.toObject();
@@ -176,11 +273,35 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Employee created successfully',
-      data: { employee: employeeResponse }
+      message: 'Employee created successfully. Login credentials sent to email.',
+      data: { 
+        employee: employeeResponse,
+        emailSent: true,
+        tempPasswordSent: true
+      }
     });
   } catch (error) {
     console.error('Create employee error:', error);
+    
+    // Handle mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: validationErrors
+      });
+    }
+
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      return res.status(400).json({
+        success: false,
+        message: `${field} already exists`
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: 'Server error',

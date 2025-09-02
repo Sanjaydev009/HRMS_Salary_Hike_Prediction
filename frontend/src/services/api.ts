@@ -285,4 +285,81 @@ export const dashboardAPI = {
   },
 };
 
+// Leave API
+export const leaveAPI = {
+  getAll: async (params?: any) => {
+    const queryParams = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const response = await api.get(`/leaves${queryParams}`);
+    return response.data;
+  },
+
+  getMyLeaves: async (params?: any) => {
+    const queryParams = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const response = await api.get(`/leaves/my${queryParams}`);
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get(`/leaves/${id}`);
+    return response.data;
+  },
+
+  apply: async (leaveData: any) => {
+    const response = await api.post('/leaves/apply', leaveData);
+    return response.data;
+  },
+
+  approve: async (id: string, data: { status: 'approved' | 'rejected', rejectionReason?: string }) => {
+    const response = await api.put(`/leaves/${id}/approve`, data);
+    return response.data;
+  },
+
+  cancel: async (id: string) => {
+    const response = await api.put(`/leaves/${id}/cancel`);
+    return response.data;
+  },
+
+  getBalance: async () => {
+    const response = await api.get('/leaves/balance/me');
+    return response.data;
+  },
+};
+
+// Payroll API
+export const payrollAPI = {
+  getAll: async (params?: any) => {
+    const queryParams = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const response = await api.get(`/payroll${queryParams}`);
+    return response.data;
+  },
+
+  getMyPayroll: async (params?: any) => {
+    const queryParams = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const response = await api.get(`/payroll/my${queryParams}`);
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get(`/payroll/${id}`);
+    return response.data;
+  },
+
+  processPayroll: async (month: number, year: number) => {
+    const response = await api.post('/payroll/process', { month, year });
+    return response.data;
+  },
+
+  getPayslip: async (id: string) => {
+    const response = await api.get(`/payroll/${id}/payslip`);
+    return response.data;
+  },
+
+  downloadPayslip: async (id: string) => {
+    const response = await api.get(`/payroll/${id}/payslip/download`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+};
+
 export default api;

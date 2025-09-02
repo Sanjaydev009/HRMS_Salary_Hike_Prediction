@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
+import { leaveAPI } from '../../services/api';
 import {
   Box,
   Typography,
@@ -106,29 +107,12 @@ const LeaveManagement: React.FC = () => {
   // Fetch leave balances from API
   const fetchLeaveBalances = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const response = await fetch('/api/leaves/balance/me', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch leave balances: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('Balance API Response:', data); // Debug log
+      const response = await leaveAPI.getBalance();
+      console.log('Balance API Response:', response); // Debug log
       
-      if (data.success && data.data && data.data.leaveBalance) {
+      if (response.success && response.data && response.data.leaveBalance) {
         // Transform API data to match our interface
-        const balances = Object.entries(data.data.leaveBalance).map(([leaveType, balance]: [string, any]) => ({
+        const balances = Object.entries(response.data.leaveBalance).map(([leaveType, balance]: [string, any]) => ({
           leaveType: leaveType.charAt(0).toUpperCase() + leaveType.slice(1),
           allocated: balance.total || balance.allocated || 0,
           used: balance.used || 0,
@@ -138,7 +122,7 @@ const LeaveManagement: React.FC = () => {
         
         setLeaveBalances(balances);
       } else {
-        console.error('Unexpected balance API response structure:', data);
+        console.error('Unexpected balance API response structure:', response);
         setLeaveBalances([]);
       }
       
@@ -154,29 +138,12 @@ const LeaveManagement: React.FC = () => {
   // Fetch leave requests from API
   const fetchLeaveRequests = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const response = await fetch('/api/leaves', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch leave requests: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('API Response:', data); // Debug log
+      const response = await leaveAPI.getAll();
+      console.log('Leaves API Response:', response); // Debug log
       
-      if (data.success && data.data && data.data.leaves) {
+      if (response.success && response.data && response.data.leaves) {
         // Transform API data to match our interface
-        const transformedRequests = data.data.leaves.map((leave: any) => ({
+        const transformedRequests = response.data.leaves.map((leave: any) => ({
           id: leave._id,
           employeeId: leave.employeeId._id,
           employeeName: `${leave.employeeId.profile.firstName} ${leave.employeeId.profile.lastName}`,
@@ -195,7 +162,7 @@ const LeaveManagement: React.FC = () => {
         setLeaveRequests(transformedRequests);
         console.log('Transformed requests:', transformedRequests); // Debug log
       } else {
-        console.error('Unexpected API response structure:', data);
+        console.error('Unexpected API response structure:', response);
         setLeaveRequests([]);
       }
       
@@ -244,26 +211,8 @@ const LeaveManagement: React.FC = () => {
 
   const handleApproveRequest = async (id: string) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const response = await fetch(`/api/leaves/${id}/approve`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'approved',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to approve request');
-      }
-
+      await leaveAPI.approve(id, { status: 'approved' });
+      
       // Refresh data after approval
       await fetchLeaveRequests();
       
@@ -275,26 +224,10 @@ const LeaveManagement: React.FC = () => {
 
   const handleRejectRequest = async (id: string) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const response = await fetch(`/api/leaves/${id}/approve`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'rejected',
-          rejectionReason: 'Request rejected by manager',
-        }),
+      await leaveAPI.approve(id, { 
+        status: 'rejected', 
+        rejectionReason: 'Request rejected by manager' 
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to reject request');
-      }
 
       // Refresh data after rejection
       await fetchLeaveRequests();
@@ -307,23 +240,15 @@ const LeaveManagement: React.FC = () => {
 
   const handleSaveRequest = async (request: Omit<LeaveRequest, 'id'>) => {
     try {
-      const response = await fetch('/api/leaves', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...request,
-          startDate: request.startDate.toISOString(),
-          endDate: request.endDate.toISOString(),
-          appliedDate: request.appliedDate.toISOString(),
-        }),
-      });
+      const leaveData = {
+        leaveType: request.leaveType,
+        startDate: request.startDate.format('YYYY-MM-DD'),
+        endDate: request.endDate.format('YYYY-MM-DD'),
+        reason: request.reason,
+        halfDay: false,
+      };
 
-      if (!response.ok) {
-        throw new Error('Failed to submit leave request');
-      }
+      await leaveAPI.apply(leaveData);
 
       // Refresh data after submission
       await Promise.all([

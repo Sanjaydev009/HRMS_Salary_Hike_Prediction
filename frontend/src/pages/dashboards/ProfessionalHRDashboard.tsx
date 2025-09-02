@@ -664,7 +664,7 @@ const ProfessionalHRDashboard: React.FC = () => {
         </Typography>
         <Grid container spacing={2}>
           {[
-            { icon: PeopleIcon, label: 'Employee Management', path: '/employees', color: '#4f46e5' },
+            { icon: PeopleIcon, label: 'Employee Management', path: '/hr/employees', color: '#4f46e5' },
             { icon: EventNoteIcon, label: 'Leave Management', path: '/leaves', color: '#059669' },
             { icon: PaymentIcon, label: 'Payroll Processing', path: '/payroll', color: '#dc2626' },
             { icon: ReportIcon, label: 'HR Analytics', path: '/analytics', color: '#7c2d12' },
