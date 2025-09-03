@@ -681,11 +681,28 @@ router.get('/performance-insights', auth, authorize('hr', 'admin'), async (req, 
 // @access  Private (HR/Admin)
 router.get('/realtime-metrics', auth, authorize('hr', 'admin'), async (req, res) => {
   try {
-    // Get current active sessions (this would be from session store in production)
-    const activeUsers = Math.floor(Math.random() * 50) + 10;
+    // Get actual active users count (based on recent activity)
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const activeUsers = await User.countDocuments({ 
+      role: { $in: ['employee', 'hr', 'admin'] },
+      status: 'active',
+      lastLogin: { $gte: twentyFourHoursAgo }
+    });
     
-    // System load simulation (in production, this would be actual server metrics)
-    const systemLoad = Math.floor(Math.random() * 100);
+    // If no lastLogin field exists, fallback to total active users
+    const fallbackActiveUsers = activeUsers > 0 ? activeUsers : await User.countDocuments({ 
+      role: { $in: ['employee', 'hr', 'admin'] },
+      status: 'active'
+    });
+    
+    // Calculate system load based on actual data volume
+    const totalEmployees = await User.countDocuments({ role: { $in: ['employee'] } });
+    const totalLeaves = await Leave.countDocuments({});
+    const totalPayroll = await Payroll.countDocuments({});
+    
+    // Calculate load percentage based on data volume (0-100%)
+    const dataVolumeScore = Math.min(100, (totalEmployees * 2 + totalLeaves + totalPayroll) / 10);
+    const systemLoad = Math.round(dataVolumeScore);
     
     // Count pending items that need attention
     const pendingLeaves = await Leave.countDocuments({ status: 'pending' });
@@ -695,11 +712,25 @@ router.get('/realtime-metrics', auth, authorize('hr', 'admin'), async (req, res)
       'payPeriod.month': new Date().getMonth() + 1
     });
     
-    // Recent alerts (could be from an alerts collection)
-    const alertsCount = Math.floor(Math.random() * 5);
+    // Calculate alerts based on actual conditions
+    let alertsCount = 0;
+    
+    // Alert: High pending leaves
+    if (pendingLeaves > 5) alertsCount++;
+    
+    // Alert: Overdue payroll
+    const currentDate = new Date();
+    const isPayrollOverdue = currentDate.getDate() > 25 && pendingPayroll > 0;
+    if (isPayrollOverdue) alertsCount++;
+    
+    // Alert: Low attendance (if attendance data exists)
+    // This would require attendance tracking implementation
+    
+    // Alert: System load high
+    if (systemLoad > 80) alertsCount++;
     
     const metrics = {
-      activeUsers,
+      activeUsers: fallbackActiveUsers,
       systemLoad,
       dataLastUpdated: new Date().toISOString(),
       alertsCount,
