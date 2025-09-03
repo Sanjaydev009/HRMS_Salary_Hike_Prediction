@@ -224,8 +224,10 @@ const ProfessionalEmployeeManagement: React.FC = () => {
         'Content-Type': 'application/json'
       });
       
-      const response = await api.get('/employees');
+      // Request all users (employees, HR, admin) with higher limit and no pagination
+      const response = await api.get('/employees?limit=100&page=1&includeAllRoles=true');
       console.log('API Response:', response.data);
+      console.log('Request URL:', '/employees?limit=100&page=1&includeAllRoles=true');
       
       if (response.data.success && response.data.data?.employees) {
         console.log('Found employees in response.data.data.employees:', response.data.data.employees);
@@ -1116,9 +1118,14 @@ const ProfessionalEmployeeManagement: React.FC = () => {
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
-            Employee Management
-          </Typography>
+          <Box>
+            <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
+              Employee Management
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Manage all users in the system ({employees.length} total)
+            </Typography>
+          </Box>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Tooltip title="Refresh Employee Data">
               <IconButton 

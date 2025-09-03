@@ -279,6 +279,14 @@ const Analytics: React.FC = () => {
         fetch('http://localhost:5001/api/analytics/realtime-metrics', { headers }).catch(() => null),
       ]);
 
+      console.log('Analytics API Responses:', {
+        dashboard: dashboardRes?.status,
+        leave: leaveRes?.status,
+        performance: performanceRes?.status,
+        employees: employeesRes?.status,
+        realtime: realtimeRes?.status
+      });
+
       // Only set data if response is successful
       if (dashboardRes && dashboardRes.ok) {
         const dashboardData = await dashboardRes.json();
@@ -314,13 +322,13 @@ const Analytics: React.FC = () => {
           setRealTimeMetrics(realtimeData.metrics);
         }
       } else {
-        // Fallback real-time metrics if endpoint doesn't exist
+        // Show actual zero values instead of random data when API fails
         setRealTimeMetrics({
-          activeUsers: Math.floor(Math.random() * 50) + 10,
-          systemLoad: Math.floor(Math.random() * 100),
+          activeUsers: 0,
+          systemLoad: 0,
           dataLastUpdated: new Date().toISOString(),
-          alertsCount: Math.floor(Math.random() * 5),
-          pendingApprovals: Math.floor(Math.random() * 10),
+          alertsCount: 0,
+          pendingApprovals: 0,
         });
       }
 
@@ -355,20 +363,29 @@ const Analytics: React.FC = () => {
     return () => clearInterval(interval);
   }, [selectedYear, selectedDepartment, autoRefresh, realTimeMode]);
 
-  // Real-time metrics update (every 5 seconds)
+  // Real-time metrics update (every 30 seconds - fetch from server)
   useEffect(() => {
     if (!realTimeMode) return;
 
-    const interval = setInterval(() => {
-      setRealTimeMetrics(prev => prev ? {
-        ...prev,
-        activeUsers: Math.max(1, prev.activeUsers + Math.floor(Math.random() * 6) - 3),
-        systemLoad: Math.max(0, Math.min(100, prev.systemLoad + Math.floor(Math.random() * 20) - 10)),
-        dataLastUpdated: new Date().toISOString(),
-        alertsCount: Math.max(0, prev.alertsCount + Math.floor(Math.random() * 3) - 1),
-        pendingApprovals: Math.max(0, prev.pendingApprovals + Math.floor(Math.random() * 3) - 1),
-      } : null);
-    }, 5000);
+    const interval = setInterval(async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        };
+        
+        const response = await fetch('http://localhost:5001/api/analytics/realtime-metrics', { headers });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setRealTimeMetrics(data.metrics);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating real-time metrics:', error);
+      }
+    }, 30000); // Update every 30 seconds
 
     return () => clearInterval(interval);
   }, [realTimeMode]);
@@ -410,6 +427,9 @@ const Analytics: React.FC = () => {
                 <Typography variant="body2">
                   {realTimeMetrics.activeUsers} active users
                 </Typography>
+                {realTimeMetrics.activeUsers === 0 && (
+                  <Chip label="No recent logins" size="small" color="warning" variant="outlined" />
+                )}
               </Box>
               
               <Box display="flex" alignItems="center" gap={1}>
@@ -417,6 +437,18 @@ const Analytics: React.FC = () => {
                 <Typography variant="body2">
                   {realTimeMetrics.systemLoad}% load
                 </Typography>
+                <Chip 
+                  label={
+                    realTimeMetrics.systemLoad > 80 ? "High" :
+                    realTimeMetrics.systemLoad > 50 ? "Medium" : "Low"
+                  }
+                  size="small" 
+                  color={
+                    realTimeMetrics.systemLoad > 80 ? "error" :
+                    realTimeMetrics.systemLoad > 50 ? "warning" : "success"
+                  }
+                  variant="outlined"
+                />
               </Box>
               
               <Box display="flex" alignItems="center" gap={1}>
@@ -424,6 +456,9 @@ const Analytics: React.FC = () => {
                 <Typography variant="body2">
                   {realTimeMetrics.alertsCount} alerts
                 </Typography>
+                {realTimeMetrics.alertsCount === 0 && (
+                  <Chip label="All clear" size="small" color="success" variant="outlined" />
+                )}
               </Box>
               
               <Box display="flex" alignItems="center" gap={1}>
@@ -431,6 +466,9 @@ const Analytics: React.FC = () => {
                 <Typography variant="body2">
                   {realTimeMetrics.pendingApprovals} pending
                 </Typography>
+                {realTimeMetrics.pendingApprovals === 0 && (
+                  <Chip label="Up to date" size="small" color="success" variant="outlined" />
+                )}
               </Box>
             </>
           )}

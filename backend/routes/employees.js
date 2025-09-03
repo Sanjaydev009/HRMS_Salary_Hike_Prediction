@@ -11,16 +11,23 @@ router.get('/', auth, async (req, res) => {
   try {
     const userRole = req.user.role;
     const userId = req.user._id;
-    const { department, designation, status, search, page = 1, limit = 10 } = req.query;
+    const { department, designation, status, search, page = 1, limit = 50, includeAllRoles = 'true' } = req.query;
     
-    let query = { role: { $in: ['employee'] } };
+    let query = {};
     
     // Role-based filtering
     if (userRole === 'employee') {
       // Employees can only see their own profile
       query._id = userId;
+      query.role = 'employee';
+    } else {
+      // HR and Admin can see all users or just employees based on includeAllRoles parameter
+      if (includeAllRoles === 'true') {
+        query.role = { $in: ['employee', 'hr', 'admin'] };
+      } else {
+        query.role = { $in: ['employee'] };
+      }
     }
-    // HR and Admin can see all employees (no additional filter)
     
     // Apply filters
     if (department) query['jobDetails.department'] = department;
@@ -37,14 +44,19 @@ router.get('/', auth, async (req, res) => {
       ];
     }
 
+    console.log('Employee Management Query:', JSON.stringify(query, null, 2));
+    console.log('Request params:', { userRole, limit, page, includeAllRoles });
+
     const employees = await User.find(query)
       .populate('jobDetails.reportingManager', 'profile.firstName profile.lastName employeeId')
       .select('-password')
       .sort({ 'profile.firstName': 1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit));
 
     const total = await User.countDocuments(query);
+
+    console.log(`Employee Management Results: Found ${employees.length} users, Total in DB matching query: ${total}`);
 
     res.json({
       success: true,
