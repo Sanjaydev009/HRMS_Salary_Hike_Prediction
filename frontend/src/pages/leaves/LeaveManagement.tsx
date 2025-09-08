@@ -36,7 +36,6 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import LeaveRequestForm from '../../components/leaves/LeaveRequestForm';
-import LeaveCalendar from '../../components/leaves/LeaveCalendar';
 
 interface LeaveRequest {
   id: string;
@@ -494,7 +493,23 @@ const LeaveManagement: React.FC = () => {
 
           {/* Leave Calendar Tab */}
           <TabPanel value={tabValue} index={1}>
-            <LeaveCalendar requests={leaveRequests} />
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="h6" gutterBottom>
+                Calendar View Available
+              </Typography>
+              <Typography variant="body1" color="textSecondary" gutterBottom>
+                For a comprehensive calendar view with real-time data and advanced features, 
+                please visit the dedicated Leave Calendar page.
+              </Typography>
+              <Button 
+                variant="contained" 
+                color="primary" 
+                sx={{ mt: 2 }}
+                onClick={() => window.location.href = '/leaves/calendar'}
+              >
+                Go to Leave Calendar
+              </Button>
+            </Box>
           </TabPanel>
 
           {/* My Balance Tab (Employee only) */}

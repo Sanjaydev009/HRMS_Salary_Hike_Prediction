@@ -88,6 +88,7 @@ app.use('/api/leaves', require('./routes/leaves'));
 app.use('/api/payroll', require('./routes/payroll'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/calendar', require('./routes/calendar'));
 
 // Dashboard API routes
 app.use('/api/dashboard', require('./routes/dashboard'));

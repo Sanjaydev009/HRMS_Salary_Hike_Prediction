@@ -14,6 +14,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import Dashboard from './pages/dashboards/RoleBasedDashboard';
 import ModernEmployeeManagement from './pages/employees/ModernEmployeeManagement';
 import LeaveManagement from './pages/leaves/LeaveManagement';
+import LeaveCalendarPage from './pages/leaves/LeaveCalendarPage';
 import PayrollManagement from './pages/payroll/PayrollManagement';
 import Profile from './pages/profile/ProfileSimple';
 import Settings from './pages/settings/Settings';
@@ -40,6 +41,7 @@ import EmployeeLeaveApply from './pages/employee/EmployeeLeaveApply';
 import EmployeeLeaveBalance from './pages/employee/EmployeeLeaveBalance';
 import EmployeeQuickActions from './pages/employee/EmployeeQuickActions';
 import PlaceholderPage from './components/common/PlaceholderPage';
+import CalendarTest from './components/debug/CalendarTest';
 
 function App() {
   return (
@@ -126,22 +128,7 @@ function App() {
             <Route path="/leaves/calendar" element={
               <ProtectedRoute>
                 <RoleBasedLayout>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    minHeight: '60vh',
-                    flexDirection: 'column',
-                    gap: 2
-                  }}>
-                    <Box sx={{ fontSize: '3rem' }}>📅</Box>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <h2 style={{ margin: 0, color: theme.palette.text.primary }}>Leave Calendar</h2>
-                      <p style={{ color: theme.palette.text.secondary, margin: '8px 0 0 0' }}>
-                        Interactive calendar view for leave management
-                      </p>
-                    </Box>
-                  </Box>
+                  <LeaveCalendarPage />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -650,6 +637,9 @@ function App() {
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
+            
+            {/* Debug Routes - No Authentication Required */}
+            <Route path="/test-calendar" element={<CalendarTest />} />
             
             {/* Fallback Route */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
