@@ -21,8 +21,8 @@ class EmailService {
   generateEmailTemplate(type, data) {
     const companyName = process.env.COMPANY_NAME || 'HRMS Corporation';
     const companyLogo = process.env.COMPANY_LOGO || 'https://is1-ssl.mzstatic.com/image/thumb/Purple122/v4/74/82/84/74828423-a336-917f-1954-d015d9c3f904/AppIcon-1x_U007emarketing-0-7-0-0-85-220.jpeg/512x512bb.jpg';
-    const supportEmail = process.env.SUPPORT_EMAIL || 'support@hrms.com';
-    
+    const supportEmail = process.env.SUPPORT_EMAIL || 'sanjay.bandi@aurora.edu.in';
+
     const baseStyle = `
       <style>
         body { 
