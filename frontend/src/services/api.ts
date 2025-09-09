@@ -309,7 +309,7 @@ export const leaveAPI = {
     return response.data;
   },
 
-  approve: async (id: string, data: { status: 'approved' | 'rejected', rejectionReason?: string }) => {
+  approve: async (id: string, data: { status: 'approved' | 'rejected', rejectionReason?: string, hrNotes?: string }) => {
     const response = await api.put(`/leaves/${id}/approve`, data);
     return response.data;
   },

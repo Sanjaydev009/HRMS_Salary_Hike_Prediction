@@ -35,6 +35,8 @@ interface LeaveRequest {
   approvedBy?: string;
   approvedDate?: Dayjs;
   comments?: string;
+  hrNotes?: string;
+  rejectionReason?: string;
 }
 
 interface LeaveBalance {
@@ -369,8 +371,30 @@ const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 />
               </Grid>
 
-              {/* Comments (for approved/rejected requests) */}
-              {mode === 'view' && formData.comments && (
+              {/* HR Notes (for approved/rejected requests) */}
+              {mode === 'view' && (request?.hrNotes || request?.rejectionReason) && (
+                <Grid item xs={12}>
+                  <Alert 
+                    severity={request?.status === 'Approved' ? 'success' : request?.status === 'Rejected' ? 'error' : 'info'}
+                    sx={{ mb: 1 }}
+                  >
+                    <Typography variant="subtitle2" gutterBottom>
+                      HR Notes {request?.status === 'Rejected' ? '(Reason for Rejection)' : ''}
+                    </Typography>
+                    <Typography variant="body2">
+                      {request?.hrNotes || request?.rejectionReason}
+                    </Typography>
+                    {request?.approvedBy && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                        By: {request.approvedBy} on {request.approvedDate?.format('MMM DD, YYYY')}
+                      </Typography>
+                    )}
+                  </Alert>
+                </Grid>
+              )}
+
+              {/* Legacy Comments (for backward compatibility) */}
+              {mode === 'view' && formData.comments && !request?.hrNotes && !request?.rejectionReason && (
                 <Grid item xs={12}>
                   <TextField
                     fullWidth

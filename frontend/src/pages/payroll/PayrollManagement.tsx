@@ -43,56 +43,99 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
-// Import components - will implement these later
-// import PayrollForm from '../../components/payroll/PayrollForm';
-// import PayslipViewer from '../../components/payroll/PayslipViewer';
-// import SalaryCalculator from '../../components/payroll/SalaryCalculator';
+// Real-time components with API integration
+import RealTimePayrollForm from '../../components/payroll/RealTimePayrollForm';
+import RealTimePayslipViewer from '../../components/payroll/RealTimePayslipViewer';
 
-// Temporary placeholder components
-const PayrollForm: React.FC<any> = ({ open, onClose }) => (
-  <Dialog open={open} onClose={onClose}>
-    <div>Payroll Form - Implementation in progress</div>
-  </Dialog>
-);
-
-const PayslipViewer: React.FC<any> = ({ open, onClose }) => (
-  <Dialog open={open} onClose={onClose}>
-    <div>Payslip Viewer - Implementation in progress</div>
-  </Dialog>
-);
-
-const SalaryCalculator: React.FC<any> = ({ open, onClose }) => (
-  <Dialog open={open} onClose={onClose}>
-    <div>Salary Calculator - Implementation in progress</div>
-  </Dialog>
-);
+// Utility function to format currency in INR
+const formatINR = (amount: number): string => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
 
 interface PayrollRecord {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  department: string;
+  _id: string; // MongoDB ObjectId
+  id?: string; // Optional compatibility field
+  employeeId: {
+    _id: string;
+    employeeId: string;
+    profile: {
+      firstName: string;
+      lastName: string;
+    };
+    jobDetails: {
+      department: string;
+      position: string;
+    };
+  };
   payPeriod: {
+    month: number;
+    year: number;
+    // Computed for display compatibility
     start: Dayjs;
     end: Dayjs;
   };
-  baseSalary: number;
+  basicSalary: number;
   allowances: {
-    type: string;
-    amount: number;
-  }[];
+    housing: number;
+    transport: number;
+    medical: number;
+    food: number;
+    overtime: number;
+    bonus: number;
+    other: number;
+  };
   deductions: {
-    type: string;
-    amount: number;
-  }[];
+    tax: number;
+    socialSecurity: number;
+    insurance: number;
+    providentFund: number;
+    loan: number;
+    advance: number;
+    other: number;
+  };
+  attendance: {
+    workingDays: number;
+    presentDays: number;
+    absentDays: number;
+    halfDays: number;
+    overtimeHours: number;
+    lateArrivals: number;
+    earlyDepartures: number;
+  };
+  calculations: {
+    grossSalary: number;
+    totalAllowances: number;
+    totalDeductions: number;
+    netSalary: number;
+  };
+  paymentDetails: {
+    paymentDate?: string;
+    paymentMethod: string;
+    transactionId?: string;
+    status: 'pending' | 'processed' | 'paid' | 'failed';
+  };
+  bankDetails?: {
+    accountNumber: string;
+    bankName: string;
+    branchCode: string;
+    ifscCode: string;
+  };
+  generatedBy: string;
+  approvedBy?: string;
+  approvedDate?: string;
+  createdAt: string;
+  updatedAt: string;
+  // Computed properties for compatibility (required for display)
+  employeeName: string;
+  department: string;
   grossPay: number;
   netPay: number;
-  taxes: {
-    federal: number;
-    state: number;
-    social: number;
-  };
-  status: 'Draft' | 'Processed' | 'Paid' | 'Cancelled';
+  status: string;
   processedDate?: Dayjs;
   paidDate?: Dayjs;
 }
@@ -130,7 +173,6 @@ const PayrollManagement: React.FC = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('All');
   const [payrollFormOpen, setPayrollFormOpen] = useState(false);
   const [payslipViewerOpen, setPayslipViewerOpen] = useState(false);
-  const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [selectedPayroll, setSelectedPayroll] = useState<PayrollRecord | null>(null);
   
   // Data state
@@ -162,15 +204,37 @@ const PayrollManagement: React.FC = () => {
       const data = await response.json();
       
       // Transform API data to match our interface
-      const transformedRecords = data.payrollRecords?.map((record: any) => ({
-        ...record,
-        payPeriod: {
-          start: dayjs(record.payPeriod.start),
-          end: dayjs(record.payPeriod.end),
-        },
-        processedDate: record.processedDate ? dayjs(record.processedDate) : undefined,
-        paidDate: record.paidDate ? dayjs(record.paidDate) : undefined,
-      })) || [];
+      const transformedRecords = data.data?.payrollRecords?.map((record: any) => {
+        // Add computed properties for compatibility with existing UI code
+        const employeeName = record.employeeId?.profile ? 
+          `${record.employeeId.profile.firstName} ${record.employeeId.profile.lastName}`.trim() : 
+          'Unknown Employee';
+        
+        const department = record.employeeId?.jobDetails?.department || 'Unknown';
+        
+        // Calculate start and end dates for pay period
+        const startDate = dayjs().year(record.payPeriod?.year || dayjs().year()).month((record.payPeriod?.month || dayjs().month()) - 1).startOf('month');
+        const endDate = startDate.endOf('month');
+        
+        return {
+          ...record,
+          // Update payPeriod to include start/end dates
+          payPeriod: {
+            ...record.payPeriod,
+            start: startDate,
+            end: endDate,
+          },
+          // Add compatibility fields
+          employeeName,
+          department,
+          grossPay: record.calculations?.grossSalary || 0,
+          netPay: record.calculations?.netSalary || 0,
+          status: record.paymentDetails?.status || 'pending',
+          // Transform dates if needed
+          processedDate: record.approvedDate ? dayjs(record.approvedDate) : undefined,
+          paidDate: record.paymentDetails?.paymentDate ? dayjs(record.paymentDetails.paymentDate) : undefined,
+        };
+      }) || [];
 
       setPayrollRecords(transformedRecords);
       
@@ -193,20 +257,36 @@ const PayrollManagement: React.FC = () => {
   // Fetch departments from API
   const fetchDepartments = async () => {
     try {
-      const response = await fetch('/api/departments', {
+      const token = localStorage.getItem('token');
+      console.log('Token for departments call:', token ? 'Present' : 'Missing');
+      
+      const response = await fetch('/api/employees/departments', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
+      console.log('Departments API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        const deptList = ['All', ...data.departments];
+        // Extract department names from the response
+        const deptNames = data.departments?.map((dept: any) => dept.name) || [];
+        const deptList = ['All', ...deptNames];
         setDepartments(deptList);
+        console.log('Departments loaded successfully:', deptList);
+      } else if (response.status === 403) {
+        // If forbidden, user doesn't have permission - use default departments
+        console.log('Access denied to departments endpoint, using default departments');
+        setDepartments(['All', 'Engineering', 'HR', 'Finance', 'Marketing', 'Sales']);
+      } else {
+        console.error('Failed to fetch departments:', response.status);
+        setDepartments(['All']); // Fallback to minimal department list
       }
     } catch (err) {
       console.error('Error fetching departments:', err);
+      setDepartments(['All']); // Fallback to minimal department list
     }
   };
 
@@ -283,7 +363,7 @@ const PayrollManagement: React.FC = () => {
   const totalGrossPay = payrollRecords.reduce((sum, record) => sum + record.grossPay, 0);
   const totalNetPay = payrollRecords.reduce((sum, record) => sum + record.netPay, 0);
   const totalTaxes = payrollRecords.reduce((sum, record) => 
-    sum + record.taxes.federal + record.taxes.state + record.taxes.social, 0
+    sum + record.deductions.tax + record.deductions.socialSecurity, 0
   );
   const pendingPayrolls = payrollRecords.filter(record => record.status === 'Draft' || record.status === 'Processed').length;
 
@@ -419,14 +499,6 @@ const PayrollManagement: React.FC = () => {
                 {refreshing ? 'Refreshing...' : 'Refresh'}
               </Button>
               <Button
-                variant="outlined"
-                startIcon={<Calculate />}
-                onClick={() => setCalculatorOpen(true)}
-                sx={{ minWidth: { xs: 'auto', sm: 140 } }}
-              >
-                Calculator
-              </Button>
-              <Button
                 variant="contained"
                 startIcon={<Add />}
                 onClick={() => setPayrollFormOpen(true)}
@@ -454,7 +526,7 @@ const PayrollManagement: React.FC = () => {
                     <Typography variant="h6">Total Gross Pay</Typography>
                   </Box>
                   <Typography variant="h4" color="primary.main">
-                    ${totalGrossPay.toLocaleString()}
+                    {formatINR(totalGrossPay)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {selectedPeriod.format('MMMM YYYY')}
@@ -470,7 +542,7 @@ const PayrollManagement: React.FC = () => {
                     <Typography variant="h6">Total Net Pay</Typography>
                   </Box>
                   <Typography variant="h4" color="success.main">
-                    ${totalNetPay.toLocaleString()}
+                    {formatINR(totalNetPay)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     After deductions
@@ -486,7 +558,7 @@ const PayrollManagement: React.FC = () => {
                     <Typography variant="h6">Total Taxes</Typography>
                   </Box>
                   <Typography variant="h4" color="warning.main">
-                    ${totalTaxes.toLocaleString()}
+                    {formatINR(totalTaxes)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Federal + State + Social
@@ -571,17 +643,17 @@ const PayrollManagement: React.FC = () => {
                 </TableHead>
                 <TableBody>
                   {filteredRecords.map((record) => (
-                    <TableRow key={record.id}>
+                    <TableRow key={record._id}>
                       <TableCell>{record.employeeName}</TableCell>
                       <TableCell>{record.department}</TableCell>
                       <TableCell>
                         {record.payPeriod.start.format('MMM DD')} - {record.payPeriod.end.format('MMM DD, YYYY')}
                       </TableCell>
                       <TableCell align="right">
-                        ${record.grossPay.toLocaleString()}
+                        {formatINR(record.grossPay)}
                       </TableCell>
                       <TableCell align="right">
-                        ${record.netPay.toLocaleString()}
+                        {formatINR(record.netPay)}
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -613,7 +685,7 @@ const PayrollManagement: React.FC = () => {
                             <IconButton
                               size="small"
                               color="primary"
-                              onClick={() => handleProcessPayroll(record.id)}
+                              onClick={() => handleProcessPayroll(record._id)}
                             >
                               <PlayArrow />
                             </IconButton>
@@ -640,13 +712,13 @@ const PayrollManagement: React.FC = () => {
                       Total Employees: {filteredRecords.length}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Total Gross Pay: ${totalGrossPay.toLocaleString()}
+                      Total Gross Pay: {formatINR(totalGrossPay)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Total Net Pay: ${totalNetPay.toLocaleString()}
+                      Total Net Pay: {formatINR(totalNetPay)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Total Taxes: ${totalTaxes.toLocaleString()}
+                      Total Taxes: {formatINR(totalTaxes)}
                     </Typography>
                   </Box>
                 </Paper>
@@ -673,21 +745,21 @@ const PayrollManagement: React.FC = () => {
           </TabPanel>
         </Paper>
 
-        {/* Dialogs */}
-        <PayrollForm
+        {/* Real-time Dialogs */}
+        <RealTimePayrollForm
           open={payrollFormOpen}
           onClose={() => setPayrollFormOpen(false)}
+          onSave={(newPayroll) => {
+            // Refresh the payroll list after successful creation
+            fetchPayrollData();
+            setPayrollFormOpen(false);
+          }}
         />
 
-        <PayslipViewer
+        <RealTimePayslipViewer
           open={payslipViewerOpen}
           onClose={() => setPayslipViewerOpen(false)}
-          payroll={selectedPayroll}
-        />
-
-        <SalaryCalculator
-          open={calculatorOpen}
-          onClose={() => setCalculatorOpen(false)}
+          payrollId={selectedPayroll?._id}
         />
         </Box>
       </Fade>

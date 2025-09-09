@@ -1,8 +1,138 @@
 const express = require('express');
 const Payroll = require('../models/Payroll');
 const User = require('../models/User');
+const Attendance = require('../models/Attendance');
 const { auth, authorize } = require('../middleware/auth');
 const router = express.Router();
+
+// @route   GET /api/payroll/attendance/:employeeId
+// @desc    Get attendance data for payroll calculation
+// @access  Private (HR/Admin)
+router.get('/attendance/:employeeId', auth, authorize('hr', 'admin'), async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { month, year } = req.query;
+
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: 'Month and year are required'
+      });
+    }
+
+    // Validate employee exists
+    const employee = await User.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found'
+      });
+    }
+
+    // Calculate date range for the month
+    const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+    const endDate = new Date(parseInt(year), parseInt(month), 0); // Last day of the month
+
+    // Get attendance records for the month
+    const attendanceRecords = await Attendance.find({
+      employeeId: employeeId,
+      date: {
+        $gte: startDate,
+        $lte: endDate
+      }
+    }).sort({ date: 1 });
+
+    // Calculate working days (exclude weekends)
+    let workingDays = 0;
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= endDate) {
+      const dayOfWeek = currentDate.getDay();
+      // Monday = 1, Sunday = 0, Saturday = 6
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        workingDays++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Calculate attendance statistics
+    let presentDays = 0;
+    let halfDays = 0;
+    let lateArrivals = 0;
+    let earlyDepartures = 0;
+    let totalHours = 0;
+    let overtimeHours = 0;
+
+    attendanceRecords.forEach(record => {
+      switch (record.status) {
+        case 'Present':
+          presentDays++;
+          break;
+        case 'Half Day':
+          halfDays++;
+          presentDays += 0.5; // Count half day as 0.5 present
+          break;
+        case 'Late':
+          lateArrivals++;
+          presentDays++; // Still considered present but late
+          break;
+      }
+
+      totalHours += record.totalHours || 0;
+      
+      // Calculate overtime (assuming 8 hours is standard)
+      if (record.totalHours > 8) {
+        overtimeHours += record.totalHours - 8;
+      }
+    });
+
+    const absentDays = workingDays - Math.ceil(presentDays);
+    const attendancePercentage = workingDays > 0 ? ((presentDays / workingDays) * 100).toFixed(1) : '0.0';
+
+    const attendanceSummary = {
+      month: parseInt(month),
+      year: parseInt(year),
+      workingDays,
+      presentDays: Math.ceil(presentDays), // Round up for payroll calculation
+      halfDays,
+      absentDays: Math.max(0, absentDays),
+      lateArrivals,
+      earlyDepartures,
+      totalHours: Math.round(totalHours * 100) / 100,
+      overtimeHours: Math.round(overtimeHours * 100) / 100,
+      attendancePercentage: parseFloat(attendancePercentage),
+      records: attendanceRecords.map(record => ({
+        date: record.date,
+        status: record.status,
+        checkIn: record.checkIn,
+        checkOut: record.checkOut,
+        totalHours: record.totalHours,
+        location: record.location
+      }))
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        employee: {
+          _id: employee._id,
+          employeeId: employee.employeeId,
+          name: `${employee.profile?.firstName || ''} ${employee.profile?.lastName || ''}`.trim(),
+          department: employee.jobDetails?.department
+        },
+        attendance: attendanceSummary
+      }
+    });
+
+  } catch (error) {
+    console.error('Get attendance for payroll error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch attendance data',
+      error: error.message
+    });
+  }
+});
 
 // @route   GET /api/payroll
 // @desc    Get payroll records
@@ -63,6 +193,8 @@ router.get('/', auth, async (req, res) => {
 // @access  Private (Employee only)
 router.get('/my', auth, async (req, res) => {
   try {
+    console.log('Fetching payroll for employee:', req.user._id);
+    
     const { month, year, page = 1, limit = 12 } = req.query;
     
     let query = { employeeId: req.user._id };
@@ -77,6 +209,8 @@ router.get('/my', auth, async (req, res) => {
       .sort({ 'payPeriod.year': -1, 'payPeriod.month': -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
+
+    console.log('Found payroll records:', payrollRecords.length);
 
     const total = await Payroll.countDocuments(query);
 
@@ -99,13 +233,13 @@ router.get('/my', auth, async (req, res) => {
     };
 
     yearlyPayroll.forEach(record => {
-      yearlyEarnings.totalGross += record.salary.grossSalary || 0;
-      yearlyEarnings.totalNet += record.salary.netSalary || 0;
-      yearlyEarnings.totalDeductions += record.deductions.total || 0;
-      yearlyEarnings.totalAllowances += record.allowances.total || 0;
-      yearlyEarnings.totalTax += (record.deductions.tax || 0);
-      yearlyEarnings.totalBonus += (record.allowances.bonus || 0);
-      yearlyEarnings.totalOvertime += (record.allowances.overtime || 0);
+      yearlyEarnings.totalGross += record.calculations?.grossSalary || 0;
+      yearlyEarnings.totalNet += record.calculations?.netSalary || 0;
+      yearlyEarnings.totalDeductions += record.calculations?.totalDeductions || 0;
+      yearlyEarnings.totalAllowances += record.calculations?.totalAllowances || 0;
+      yearlyEarnings.totalTax += (record.deductions?.tax || 0);
+      yearlyEarnings.totalBonus += (record.allowances?.bonus || 0);
+      yearlyEarnings.totalOvertime += (record.allowances?.overtime || 0);
     });
 
     // Get latest payslip for quick access
@@ -124,9 +258,9 @@ router.get('/my', auth, async (req, res) => {
       latestPayslip: latestPayslip ? {
         month: latestPayslip.payPeriod.month,
         year: latestPayslip.payPeriod.year,
-        netSalary: latestPayslip.salary.netSalary,
-        status: latestPayslip.paymentDetails.status,
-        payDate: latestPayslip.paymentDetails.paidDate
+        netSalary: latestPayslip.calculations?.netSalary || 0,
+        status: latestPayslip.paymentDetails?.status || 'pending',
+        payDate: latestPayslip.paymentDetails?.paymentDate
       } : null
     };
 
@@ -148,6 +282,252 @@ router.get('/my', auth, async (req, res) => {
       success: false,
       message: 'Server error',
       error: error.message
+    });
+  }
+});
+
+// @route   POST /api/payroll
+// @desc    Create individual payroll record with real-time attendance data
+// @access  Private (HR/Admin)
+router.post('/', auth, authorize('hr', 'admin'), async (req, res) => {
+  try {
+    console.log('=== PAYROLL CREATION DEBUG ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('User making request:', req.user.employeeId, req.user.role);
+    
+    const {
+      employeeId,
+      payPeriod,
+      basicSalary,
+      allowances,
+      deductions,
+      overtime
+    } = req.body;
+
+    console.log('Extracted fields:', { employeeId, payPeriod, basicSalary });
+
+    // Validate required fields
+    if (!employeeId || !payPeriod || !basicSalary) {
+      console.log('❌ Validation failed - missing required fields');
+      return res.status(400).json({
+        success: false,
+        message: 'Employee ID, pay period, and basic salary are required'
+      });
+    }
+
+    console.log('✅ Basic validation passed');
+
+    // Check if employee exists
+    console.log('Checking if employee exists:', employeeId);
+    const employee = await User.findById(employeeId);
+    if (!employee) {
+      console.log('❌ Employee not found:', employeeId);
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found'
+      });
+    }
+
+    console.log('✅ Employee found:', employee.employeeId, employee.profile?.firstName);
+
+    // Check if payroll record already exists for this period
+    console.log('Checking for existing payroll record...');
+    const existingPayroll = await Payroll.findOne({
+      employeeId,
+      'payPeriod.month': payPeriod.month,
+      'payPeriod.year': payPeriod.year
+    });
+
+    if (existingPayroll) {
+      console.log('❌ Payroll record already exists:', existingPayroll._id);
+      return res.status(400).json({
+        success: false,
+        message: `Payroll record already exists for ${payPeriod.month}/${payPeriod.year}`
+      });
+    }
+
+    console.log('✅ No existing payroll record found');
+
+    // Fetch real-time attendance data for the specified month/year
+    console.log('Fetching attendance data for:', payPeriod.month, payPeriod.year);
+    const startDate = new Date(payPeriod.year, payPeriod.month - 1, 1);
+    const endDate = new Date(payPeriod.year, payPeriod.month, 0);
+
+    // Get attendance records for the month
+    const attendanceRecords = await Attendance.find({
+      employeeId: employeeId,
+      date: {
+        $gte: startDate,
+        $lte: endDate
+      }
+    });
+
+    // Calculate working days (exclude weekends)
+    let workingDays = 0;
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= endDate) {
+      const dayOfWeek = currentDate.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        workingDays++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Calculate attendance statistics from real data
+    let presentDays = 0;
+    let halfDays = 0;
+    let lateArrivals = 0;
+    let earlyDepartures = 0;
+    let actualOvertimeHours = 0;
+
+    attendanceRecords.forEach(record => {
+      switch (record.status) {
+        case 'Present':
+          presentDays++;
+          break;
+        case 'Half Day':
+          halfDays++;
+          presentDays += 0.5;
+          break;
+        case 'Late':
+          lateArrivals++;
+          presentDays++;
+          break;
+      }
+
+      // Calculate overtime from actual hours worked
+      if (record.totalHours > 8) {
+        actualOvertimeHours += record.totalHours - 8;
+      }
+    });
+
+    const absentDays = workingDays - Math.ceil(presentDays);
+
+    // Calculate pro-rated salary based on actual attendance
+    const attendanceRatio = workingDays > 0 ? (presentDays / workingDays) : 1;
+    const proRatedBasicSalary = basicSalary * attendanceRatio;
+
+    // Use actual overtime hours from attendance, or fallback to manual entry
+    const overtimeHours = actualOvertimeHours > 0 ? actualOvertimeHours : (overtime?.hours || 0);
+    const overtimeRate = overtime?.rate || 0;
+    const overtimePay = overtimeHours * overtimeRate;
+
+    // Calculate total allowances
+    const totalAllowances = Object.values(allowances || {}).reduce((sum, val) => sum + (val || 0), 0);
+    
+    // Calculate total deductions
+    const totalDeductions = Object.values(deductions || {}).reduce((sum, val) => sum + (val || 0), 0);
+
+    // Calculate gross and net salary
+    const grossSalary = proRatedBasicSalary + totalAllowances + overtimePay;
+    const netSalary = grossSalary - totalDeductions;
+
+    // Create payroll record with real attendance data
+    const payrollData = {
+      employeeId,
+      payPeriod: {
+        month: payPeriod.month,
+        year: payPeriod.year
+      },
+      basicSalary: proRatedBasicSalary,
+      allowances: {
+        housing: allowances?.housing || 0,
+        transport: allowances?.transport || 0,
+        medical: allowances?.medical || 0,
+        food: allowances?.food || 0,
+        overtime: overtimePay,
+        bonus: 0,
+        other: allowances?.other || 0
+      },
+      deductions: {
+        tax: deductions?.tax || 0,
+        socialSecurity: 0,
+        insurance: deductions?.insurance || 0,
+        providentFund: deductions?.providentFund || 0,
+        loan: 0,
+        advance: 0,
+        other: deductions?.other || 0
+      },
+      attendance: {
+        workingDays,
+        presentDays: Math.ceil(presentDays),
+        absentDays: Math.max(0, absentDays),
+        halfDays,
+        overtimeHours: Math.round(overtimeHours * 100) / 100,
+        lateArrivals,
+        earlyDepartures: 0 // This would need to be calculated based on checkout time vs expected time
+      },
+      calculations: {
+        grossSalary,
+        totalAllowances: totalAllowances + overtimePay,
+        totalDeductions,
+        netSalary
+      },
+      paymentDetails: {
+        paymentMethod: 'bank-transfer',
+        status: 'pending'
+      },
+      generatedBy: req.user._id,
+      notes: `Payroll generated with real-time attendance data. Attendance: ${Math.ceil(presentDays)}/${workingDays} days (${Math.round(attendanceRatio * 100)}%)`
+    };
+
+    console.log('Step 6: Payroll data prepared:', JSON.stringify(payrollData, null, 2));
+    
+    console.log('Step 7: Creating Payroll instance');
+    const payroll = new Payroll(payrollData);
+    
+    console.log('Step 8: Saving payroll to database');
+    await payroll.save();
+    
+    console.log('Step 9: Payroll saved successfully, ID:', payroll._id);
+
+    console.log('Step 10: Fetching populated payroll data');
+    const populatedPayroll = await Payroll.findById(payroll._id)
+      .populate('employeeId', 'employeeId profile jobDetails')
+      .populate('generatedBy', 'profile.firstName profile.lastName');
+
+    console.log('Step 11: Sending success response');
+    res.status(201).json({
+      success: true,
+      message: 'Payroll record created successfully with real-time attendance data',
+      data: { 
+        payroll: populatedPayroll,
+        attendanceInfo: {
+          workingDays,
+          presentDays: Math.ceil(presentDays),
+          attendancePercentage: Math.round(attendanceRatio * 100),
+          overtimeHours: Math.round(overtimeHours * 100) / 100
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('=== PAYROLL CREATION ERROR ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    if (error.name === 'ValidationError') {
+      console.error('Mongoose validation errors:', error.errors);
+    }
+    
+    if (error.code === 11000) {
+      console.error('Duplicate key error:', error.keyPattern, error.keyValue);
+    }
+    
+    console.error('=== END ERROR ===');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create payroll record',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? {
+        name: error.name,
+        code: error.code,
+        keyPattern: error.keyPattern,
+        keyValue: error.keyValue
+      } : undefined
     });
   }
 });
@@ -379,6 +759,81 @@ router.put('/:id/pay', auth, authorize('hr', 'admin'), async (req, res) => {
     });
   }
 });
+
+// @route   GET /api/payroll/:id/download
+// @desc    Download payslip as PDF
+// @access  Private
+router.get('/:id/download', auth, async (req, res) => {
+  try {
+    const payroll = await Payroll.findById(req.params.id)
+      .populate('employeeId', 'employeeId profile jobDetails')
+      .populate('generatedBy', 'profile.firstName profile.lastName')
+      .populate('approvedBy', 'profile.firstName profile.lastName');
+
+    if (!payroll) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll record not found'
+      });
+    }
+
+    // Check access permissions
+    const canAccess = payroll.employeeId._id.toString() === req.user._id.toString() || 
+                     ['hr', 'admin'].includes(req.user.role);
+
+    if (!canAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    // For now, return the payroll data as JSON with a special content type
+    // Frontend can handle generating PDF or printing
+    const payslipData = {
+      employeeName: `${payroll.employeeId.profile.firstName} ${payroll.employeeId.profile.lastName}`,
+      employeeId: payroll.employeeId.employeeId,
+      department: payroll.employeeId.jobDetails?.department || 'N/A',
+      payPeriod: `${getMonthName(payroll.payPeriod.month)} ${payroll.payPeriod.year}`,
+      basicSalary: payroll.basicSalary,
+      allowances: payroll.allowances,
+      deductions: payroll.deductions,
+      calculations: payroll.calculations,
+      attendance: payroll.attendance,
+      paymentDetails: payroll.paymentDetails,
+      generatedBy: payroll.generatedBy ? `${payroll.generatedBy.profile.firstName} ${payroll.generatedBy.profile.lastName}` : 'System',
+      generatedDate: payroll.createdAt,
+      notes: payroll.notes
+    };
+
+    // Set headers for download
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="payslip-${payroll.employeeId.employeeId}-${payroll.payPeriod.month}-${payroll.payPeriod.year}.json"`);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Payslip data for download',
+      data: payslipData
+    });
+
+  } catch (error) {
+    console.error('Download payslip error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+});
+
+// Helper function for month names
+function getMonthName(monthNumber) {
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  return months[monthNumber - 1];
+}
 
 // @route   GET /api/payroll/stats/summary
 // @desc    Get payroll summary statistics

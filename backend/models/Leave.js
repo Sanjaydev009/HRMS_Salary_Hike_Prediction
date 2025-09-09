@@ -48,6 +48,11 @@ const leaveSchema = new mongoose.Schema({
     type: String,
     maxlength: 500
   },
+  hrNotes: {
+    type: String,
+    maxlength: 1000,
+    description: 'HR notes for approval/rejection with feedback to employee'
+  },
   halfDay: {
     type: Boolean,
     default: false

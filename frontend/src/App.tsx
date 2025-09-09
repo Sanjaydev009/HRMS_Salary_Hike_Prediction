@@ -135,7 +135,7 @@ function App() {
             
             {/* Payroll Management Routes */}
             <Route path="/payroll" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['hr', 'admin']}>
                 <RoleBasedLayout>
                   <PayrollManagement />
                 </RoleBasedLayout>
@@ -143,7 +143,7 @@ function App() {
             } />
             
             <Route path="/payroll/payslips" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['hr', 'admin']}>
                 <RoleBasedLayout>
                   <Box sx={{ 
                     display: 'flex', 
@@ -166,7 +166,7 @@ function App() {
             } />
             
             <Route path="/payroll/calculator" element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['hr', 'admin']}>
                 <RoleBasedLayout>
                   <Box sx={{ 
                     display: 'flex', 

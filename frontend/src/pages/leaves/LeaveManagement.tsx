@@ -31,11 +31,13 @@ import {
   Visibility,
   CalendarToday,
   TrendingUp,
+  Edit,
 } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import LeaveRequestForm from '../../components/leaves/LeaveRequestForm';
+import HRLeaveApprovalDialog from '../../components/leaves/HRLeaveApprovalDialog';
 
 interface LeaveRequest {
   id: string;
@@ -51,6 +53,8 @@ interface LeaveRequest {
   approvedBy?: string;
   approvedDate?: Dayjs;
   comments?: string;
+  hrNotes?: string;
+  rejectionReason?: string;
 }
 
 interface LeaveBalance {
@@ -90,6 +94,7 @@ function TabPanel(props: TabPanelProps) {
 const LeaveManagement: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,15 +142,18 @@ const LeaveManagement: React.FC = () => {
   // Fetch leave requests from API
   const fetchLeaveRequests = async () => {
     try {
-      const response = await leaveAPI.getAll();
+      // Use different API endpoints based on user role
+      const response = user?.role === 'employee' ? await leaveAPI.getMyLeaves() : await leaveAPI.getAll();
       console.log('Leaves API Response:', response); // Debug log
       
       if (response.success && response.data && response.data.leaves) {
         // Transform API data to match our interface
         const transformedRequests = response.data.leaves.map((leave: any) => ({
           id: leave._id,
-          employeeId: leave.employeeId._id,
-          employeeName: `${leave.employeeId.profile.firstName} ${leave.employeeId.profile.lastName}`,
+          employeeId: leave.employeeId?._id || leave.employeeId,
+          employeeName: leave.employeeId?.profile 
+            ? `${leave.employeeId.profile.firstName} ${leave.employeeId.profile.lastName}`
+            : 'Unknown Employee',
           leaveType: leave.leaveType,
           startDate: dayjs(leave.startDate),
           endDate: dayjs(leave.endDate),
@@ -156,6 +164,8 @@ const LeaveManagement: React.FC = () => {
           approvedBy: leave.approvedBy ? `${leave.approvedBy.profile.firstName} ${leave.approvedBy.profile.lastName}` : undefined,
           approvedDate: leave.approvedDate ? dayjs(leave.approvedDate) : undefined,
           comments: leave.rejectionReason || leave.comments,
+          hrNotes: leave.hrNotes,
+          rejectionReason: leave.rejectionReason,
         }));
 
         setLeaveRequests(transformedRequests);
@@ -206,6 +216,21 @@ const LeaveManagement: React.FC = () => {
       setSelectedRequest(request);
       setFormOpen(true);
     }
+  };
+
+  const handleHRReviewRequest = (id: string) => {
+    const request = leaveRequests.find(req => req.id === id);
+    if (request) {
+      setSelectedRequest(request);
+      setApprovalDialogOpen(true);
+    }
+  };
+
+  const handleApprovalSuccess = async () => {
+    // Refresh data after approval/rejection
+    await fetchLeaveRequests();
+    setApprovalDialogOpen(false);
+    setSelectedRequest(null);
   };
 
   const handleApproveRequest = async (id: string) => {
@@ -460,25 +485,15 @@ const LeaveManagement: React.FC = () => {
                             <Visibility />
                           </IconButton>
                         </Tooltip>
-                        {(currentUserRole === 'hr' || currentUserRole === 'manager' || currentUserRole === 'admin') && 
-                         request.status === 'Pending' && (
+                        {(currentUserRole === 'hr' || currentUserRole === 'manager' || currentUserRole === 'admin') && (
                           <>
-                            <Tooltip title="Approve">
+                            <Tooltip title={request.status === 'Pending' ? "Review & Decide" : "View HR Notes"}>
                               <IconButton
                                 size="small"
-                                color="success"
-                                onClick={() => handleApproveRequest(request.id)}
+                                color="primary"
+                                onClick={() => handleHRReviewRequest(request.id)}
                               >
-                                <CheckCircle />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Reject">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => handleRejectRequest(request.id)}
-                              >
-                                <Cancel />
+                                <Edit />
                               </IconButton>
                             </Tooltip>
                           </>
@@ -559,6 +574,17 @@ const LeaveManagement: React.FC = () => {
           request={selectedRequest}
           mode={selectedRequest ? 'view' : 'add'}
           leaveBalances={leaveBalances}
+        />
+
+        {/* HR Leave Approval Dialog */}
+        <HRLeaveApprovalDialog
+          open={approvalDialogOpen}
+          onClose={() => {
+            setApprovalDialogOpen(false);
+            setSelectedRequest(null);
+          }}
+          leave={selectedRequest}
+          onSuccess={handleApprovalSuccess}
         />
       </Box>
     </LocalizationProvider>
