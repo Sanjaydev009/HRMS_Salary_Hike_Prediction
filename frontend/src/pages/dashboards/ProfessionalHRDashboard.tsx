@@ -622,14 +622,14 @@ const ProfessionalHRDashboard: React.FC = () => {
                         <ListItemText
                           primary={activity.title}
                           secondary={
-                            <Box>
-                              <Typography variant="body2" color="text.secondary">
+                            <span>
+                              <Typography variant="body2" color="text.secondary" component="span" display="block">
                                 {activity.description}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography variant="caption" color="text.secondary" component="span" display="block">
                                 {new Date(activity.timestamp).toLocaleString()}
                               </Typography>
-                            </Box>
+                            </span>
                           }
                         />
                         {activity.priority === 'high' && (

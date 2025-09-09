@@ -84,6 +84,13 @@ router.get('/my', auth, async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
+    console.log('DEBUG: Employee leaves data:', JSON.stringify(leaves.map(l => ({
+      id: l._id, 
+      status: l.status, 
+      hrNotes: l.hrNotes, 
+      rejectionReason: l.rejectionReason
+    })), null, 2));
+
     const total = await Leave.countDocuments(query);
 
     // Calculate leave balances
@@ -377,11 +384,11 @@ router.get('/:id', auth, ownerOrAdmin, async (req, res) => {
 });
 
 // @route   PUT /api/leaves/:id/approve
-// @desc    Approve/Reject leave
+// @desc    Approve/Reject leave with HR notes
 // @access  Private (HR/Admin)
 router.put('/:id/approve', auth, authorize('hr', 'admin'), async (req, res) => {
   try {
-    const { status, rejectionReason } = req.body;
+    const { status, rejectionReason, hrNotes } = req.body;
 
     if (!['approved', 'rejected'].includes(status)) {
       return res.status(400).json({
@@ -411,8 +418,20 @@ router.put('/:id/approve', auth, authorize('hr', 'admin'), async (req, res) => {
     leave.approvedBy = req.user._id;
     leave.approvedDate = new Date();
 
-    if (status === 'rejected' && rejectionReason) {
-      leave.rejectionReason = rejectionReason;
+    // Add HR notes (for both approval and rejection)
+    if (hrNotes) {
+      leave.hrNotes = hrNotes;
+    }
+
+    // Keep backward compatibility with rejectionReason
+    if (status === 'rejected') {
+      if (rejectionReason) {
+        leave.rejectionReason = rejectionReason;
+      }
+      // If no specific rejection reason but HR notes exist, use HR notes as rejection reason
+      if (!rejectionReason && hrNotes) {
+        leave.rejectionReason = hrNotes;
+      }
     }
 
     // If approved, deduct from leave balance

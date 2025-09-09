@@ -38,6 +38,9 @@ import {
   School as SchoolIcon,
   Cancel,
   Edit as EditIcon,
+  AccountBalanceWallet as PayrollIcon,
+  Download as DownloadIcon,
+  Receipt as ReceiptIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -47,6 +50,279 @@ import {
   attendanceAPI 
 } from '../../services/api';
 import ProfileUpdateDialog from '../../components/profile/ProfileUpdateDialog';
+
+// Payroll Section Component for Employee Dashboard
+const PayrollSection: React.FC<{ userEmployeeId?: string }> = ({ userEmployeeId }) => {
+  const [payrollRecords, setPayrollRecords] = useState<any[]>([]);
+  const [payrollLoading, setPayrollLoading] = useState(true);
+  const [payrollError, setPayrollError] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const fetchPayrollRecords = async () => {
+    try {
+      setPayrollLoading(true);
+      setPayrollError(null);
+      
+      const response = await fetch('/api/payroll/my', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch payroll records');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setPayrollRecords(data.data.payrollRecords || []);
+      } else {
+        throw new Error(data.message || 'Failed to load payroll records');
+      }
+    } catch (error) {
+      console.error('Error fetching payroll records:', error);
+      setPayrollError(error instanceof Error ? error.message : 'Failed to load payroll records');
+    } finally {
+      setPayrollLoading(false);
+    }
+  };
+
+  const downloadPayslip = async (payrollId: string, month: number, year: number) => {
+    try {
+      const response = await fetch(`/api/payroll/${payrollId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download payslip');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        // Create a simple payslip download (in a real app, this would be a PDF)
+        const payslipData = data.data.payroll;
+        const payslipContent = `
+PAYSLIP - ${month}/${year}
+========================
+Employee: ${payslipData.employeeId?.profile?.firstName} ${payslipData.employeeId?.profile?.lastName}
+Employee ID: ${payslipData.employeeId?.employeeId}
+Department: ${payslipData.employeeId?.jobDetails?.department}
+
+EARNINGS
+--------
+Basic Salary: ${formatCurrency(payslipData.basicSalary || 0)}
+Allowances: ${formatCurrency(payslipData.allowances?.housing + payslipData.allowances?.transport + payslipData.allowances?.medical + payslipData.allowances?.other || 0)}
+Overtime: ${formatCurrency(payslipData.allowances?.overtime || 0)}
+GROSS SALARY: ${formatCurrency(payslipData.calculations?.grossSalary || 0)}
+
+DEDUCTIONS
+----------
+Tax: ${formatCurrency(payslipData.deductions?.tax || 0)}
+Insurance: ${formatCurrency(payslipData.deductions?.insurance || 0)}
+Provident Fund: ${formatCurrency(payslipData.deductions?.providentFund || 0)}
+Other: ${formatCurrency(payslipData.deductions?.other || 0)}
+TOTAL DEDUCTIONS: ${formatCurrency(payslipData.calculations?.totalDeductions || 0)}
+
+NET SALARY: ${formatCurrency(payslipData.calculations?.netSalary || 0)}
+
+ATTENDANCE
+----------
+Working Days: ${payslipData.attendance?.workingDays || 0}
+Present Days: ${payslipData.attendance?.presentDays || 0}
+Attendance %: ${payslipData.attendance?.attendancePercentage || 0}%
+
+Payment Status: ${payslipData.paymentDetails?.status?.toUpperCase() || 'PENDING'}
+Generated: ${new Date(payslipData.createdAt).toLocaleDateString()}
+        `;
+
+        // Create and download the file
+        const blob = new Blob([payslipContent], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Payslip_${month}_${year}_${payslipData.employeeId?.employeeId}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error downloading payslip:', error);
+      alert('Failed to download payslip');
+    }
+  };
+
+  React.useEffect(() => {
+    fetchPayrollRecords();
+  }, []);
+
+  return (
+    <Card elevation={2}>
+      <CardContent>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <PayrollIcon color="primary" />
+            My Payroll & Salary Records
+          </Typography>
+          <Chip 
+            label="Real-time" 
+            size="small" 
+            color="success" 
+            variant="outlined"
+          />
+        </Stack>
+
+        {payrollLoading ? (
+          <Box display="flex" justifyContent="center" p={3}>
+            <CircularProgress />
+          </Box>
+        ) : payrollError ? (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {payrollError}
+          </Alert>
+        ) : payrollRecords.length === 0 ? (
+          <Box textAlign="center" py={4}>
+            <ReceiptIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              No Payroll Records Found
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Your payroll records will appear here once they are generated by HR
+            </Typography>
+            <Button 
+              variant="outlined" 
+              onClick={fetchPayrollRecords}
+              startIcon={<TrendingUpIcon />}
+            >
+              Refresh Records
+            </Button>
+          </Box>
+        ) : (
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              View and download your salary slips. All amounts are in Indian Rupees (₹).
+            </Typography>
+
+            <Grid container spacing={2}>
+              {payrollRecords.slice(0, 6).map((record) => (
+                <Grid item xs={12} sm={6} md={4} key={record._id}>
+                  <Card 
+                    variant="outlined" 
+                    sx={{ 
+                      transition: 'all 0.2s',
+                      '&:hover': { 
+                        boxShadow: 2, 
+                        transform: 'translateY(-2px)' 
+                      }
+                    }}
+                  >
+                    <CardContent sx={{ p: 2 }}>
+                      <Stack spacing={1}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography variant="subtitle2" fontWeight="bold">
+                            {record.payPeriod?.month}/{record.payPeriod?.year}
+                          </Typography>
+                          <Chip 
+                            label={record.paymentDetails?.status || 'pending'} 
+                            size="small" 
+                            color={
+                              record.paymentDetails?.status === 'paid' ? 'success' : 
+                              record.paymentDetails?.status === 'processed' ? 'warning' : 
+                              'default'
+                            }
+                          />
+                        </Stack>
+
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Net Salary
+                          </Typography>
+                          <Typography variant="h6" color="success.main">
+                            {formatCurrency(record.calculations?.netSalary || 0)}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Attendance: {record.attendance?.presentDays || 0}/{record.attendance?.workingDays || 22} days
+                          </Typography>
+                        </Box>
+
+                        <Stack direction="row" spacing={1} mt={1}>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<DownloadIcon />}
+                            onClick={() => downloadPayslip(
+                              record._id, 
+                              record.payPeriod?.month, 
+                              record.payPeriod?.year
+                            )}
+                            fullWidth
+                          >
+                            Download
+                          </Button>
+                        </Stack>
+
+                        <Typography variant="caption" color="text.secondary">
+                          Generated: {new Date(record.createdAt).toLocaleDateString()}
+                        </Typography>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+
+            {payrollRecords.length > 6 && (
+              <Box textAlign="center" mt={2}>
+                <Button 
+                  variant="outlined" 
+                  onClick={() => navigate('/payroll')}
+                  startIcon={<ReceiptIcon />}
+                >
+                  View All Payroll Records ({payrollRecords.length})
+                </Button>
+              </Box>
+            )}
+
+            <Divider sx={{ my: 2 }} />
+
+            <Stack direction="row" spacing={2} justifyContent="center">
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<TrendingUpIcon />}
+                onClick={fetchPayrollRecords}
+              >
+                Refresh
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ReceiptIcon />}
+                onClick={() => navigate('/payroll')}
+              >
+                All Records
+              </Button>
+            </Stack>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 interface DashboardData {
   personalStats: {
@@ -864,6 +1140,11 @@ const EmployeeDashboard: React.FC = () => {
               </Stack>
             </CardContent>
           </Card>
+        </Grid>
+
+        {/* Payroll & Salary Records - NEW SECTION */}
+        <Grid item xs={12}>
+          <PayrollSection userEmployeeId={user?.id} />
         </Grid>
 
         {/* Quick Actions for Employees - Enhanced */}
