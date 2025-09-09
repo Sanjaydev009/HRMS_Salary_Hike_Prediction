@@ -21,6 +21,8 @@ import Settings from './pages/settings/Settings';
 import Login from './pages/auth/Login';
 import CertificationManager from './components/certifications/CertificationManager';
 import SalaryPredictionDashboard from './components/ml/SalaryPredictionDashboard';
+import DebugLeaves from './pages/DebugLeaves';
+import TestLeaveView from './pages/TestLeaveView';
 
 // HR Components
 import HREmployeeManagement from './components/hr/HREmployeeManagement';
@@ -640,6 +642,8 @@ function App() {
             
             {/* Debug Routes - No Authentication Required */}
             <Route path="/test-calendar" element={<CalendarTest />} />
+            <Route path="/debug-leaves" element={<DebugLeaves />} />
+            <Route path="/test-leave-view" element={<TestLeaveView />} />
             
             {/* Fallback Route */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

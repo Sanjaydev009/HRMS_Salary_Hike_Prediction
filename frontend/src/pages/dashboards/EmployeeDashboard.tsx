@@ -25,6 +25,7 @@ import {
   MenuItem,
   Snackbar,
   IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -41,6 +42,8 @@ import {
   AccountBalanceWallet as PayrollIcon,
   Download as DownloadIcon,
   Receipt as ReceiptIcon,
+  Refresh as RefreshIcon,
+  Help as HelpIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -390,26 +393,145 @@ const EmployeeDashboard: React.FC = () => {
     fetchDashboardData();
     fetchTodaysAttendance();
     fetchSalaryPrediction();
-    // Set up auto-refresh every 30 seconds for real-time updates
+    // Enhanced real-time updates every 15 seconds for better responsiveness
     const interval = setInterval(() => {
       fetchDashboardData();
       fetchTodaysAttendance();
       setLastUpdate(new Date());
-    }, 30000);
+      console.log('Dashboard data refreshed at:', new Date().toLocaleTimeString());
+    }, 15000); // Reduced from 30 seconds to 15 seconds for better real-time experience
     return () => clearInterval(interval);
+  }, []);
+
+  // Enhanced real-time data refresh function
+  const refreshAllData = async () => {
+    setLoading(true);
+    try {
+      console.log('Manual refresh initiated at:', new Date().toLocaleTimeString());
+      await Promise.all([
+        fetchDashboardData(),
+        fetchTodaysAttendance(),
+        fetchSalaryPrediction()
+      ]);
+      setLastUpdate(new Date());
+      setSnackbar({
+        open: true,
+        message: 'Dashboard data refreshed successfully at ' + new Date().toLocaleTimeString(),
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error refreshing dashboard data:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error refreshing dashboard data - please try again',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Enhanced navigation with proper error handling
+  const handleNavigate = (path: string, title?: string) => {
+    try {
+      navigate(path);
+      if (title) {
+        setSnackbar({
+          open: true,
+          message: `Navigating to ${title}...`,
+          severity: 'success'
+        });
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Navigation error occurred',
+        severity: 'error'
+      });
+    }
+  };
+
+  // Keyboard shortcuts for navigation - Following Sidebar Structure
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key) {
+          case '1':
+            event.preventDefault();
+            handleNavigate('/employee/today-attendance', "Today's Attendance");
+            break;
+          case '2':
+            event.preventDefault();
+            handleNavigate('/employee/profile', 'My Profile');
+            break;
+          case '3':
+            event.preventDefault();
+            handleNavigate('/employee/my-certifications', 'Certifications & Skills');
+            break;
+          case '4':
+            event.preventDefault();
+            handleNavigate('/employee/my-leave-balance', 'Leave Balance');
+            break;
+          case '5':
+            event.preventDefault();
+            handleNavigate('/employee/leave/apply', 'Apply Leave');
+            break;
+          case '6':
+            event.preventDefault();
+            handleNavigate('/employee/leaves', 'My Leaves');
+            break;
+          case '7':
+            event.preventDefault();
+            handleNavigate('/employee/quick-actions', 'Quick Actions');
+            break;
+          case '8':
+            event.preventDefault();
+            handleNavigate('/employee/payroll', 'Payroll');
+            break;
+          case 'r':
+          case 'R':
+            event.preventDefault();
+            refreshAllData();
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
+  // Auto-refresh data when browser tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshAllData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const fetchDashboardData = async () => {
     try {
       setError(null);
+      console.log('Fetching dashboard data at:', new Date().toLocaleTimeString());
+      
+      // Add cache busting to ensure fresh data
+      const timestamp = new Date().getTime();
       const data = await dashboardAPI.getUserDashboard();
       setDashboardData(data);
+      
+      console.log('Dashboard data fetched successfully:', data);
     } catch (error: any) {
       console.error('Error fetching employee dashboard data:', error);
       if (error.response?.status === 401) {
         setError('Unable to determine user role. Please log in again.');
       } else {
-        setError('Failed to load dashboard data');
+        setError('Failed to load dashboard data - ' + (error.message || 'Unknown error'));
       }
     } finally {
       setLoading(false);
@@ -625,7 +747,7 @@ const EmployeeDashboard: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Welcome Header */}
+      {/* Welcome Header - Enhanced with Real-time Controls */}
       <Box sx={{ mb: 4 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Box>
@@ -637,17 +759,49 @@ const EmployeeDashboard: React.FC = () => {
             </Typography>
           </Box>
           <Box textAlign="right">
-            <Typography variant="caption" color="text.secondary">
-              🔄 Last updated: {lastUpdate?.toLocaleTimeString() || 'Loading...'}
-            </Typography>
-            <br />
-            <Chip 
-              label="Live Data" 
-              size="small" 
-              color="success" 
-              variant="outlined"
-              sx={{ mt: 0.5 }}
-            />
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <Box textAlign="right">
+                <Typography variant="caption" color="text.secondary">
+                  🔄 Last updated: {lastUpdate?.toLocaleTimeString() || 'Loading...'}
+                </Typography>
+                <br />
+                <Chip 
+                  label={loading ? "Updating..." : "Live Data"} 
+                  size="small" 
+                  color={loading ? "warning" : "success"}
+                  variant="outlined"
+                  sx={{ mt: 0.5 }}
+                />
+              </Box>
+              <Tooltip title={
+                <Box>
+                  <Typography variant="body2" sx={{ mb: 1 }}>Keyboard Shortcuts (Sidebar Navigation):</Typography>
+                  <Typography variant="caption" component="div">• Ctrl+1: Today's Attendance</Typography>
+                  <Typography variant="caption" component="div">• Ctrl+2: My Profile</Typography>
+                  <Typography variant="caption" component="div">• Ctrl+3: Certifications & Skills</Typography>
+                  <Typography variant="caption" component="div">• Ctrl+4: Leave Balance</Typography>
+                  <Typography variant="caption" component="div">• Ctrl+5: Apply Leave</Typography>
+                  <Typography variant="caption" component="div">• Ctrl+6: My Leaves</Typography>
+                  <Typography variant="caption" component="div">• Ctrl+7: Quick Actions</Typography>
+                  <Typography variant="caption" component="div">• Ctrl+8: Payroll</Typography>
+                  <Typography variant="caption" component="div">• Ctrl+R: Refresh Data</Typography>
+                </Box>
+              }>
+                <IconButton size="small">
+                  <HelpIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<RefreshIcon />}
+                onClick={refreshAllData}
+                disabled={loading}
+                sx={{ minWidth: 'auto' }}
+              >
+                {loading ? 'Updating...' : 'Refresh'}
+              </Button>
+            </Stack>
           </Box>
         </Stack>
       </Box>
@@ -724,6 +878,114 @@ const EmployeeDashboard: React.FC = () => {
               </Stack>
             </CardContent>
           </Card>
+        </Grid>
+
+        {/* Quick Navigation Panel - Following Sidebar Navigation Structure */}
+        <Grid item xs={12}>
+          <Paper elevation={2} sx={{ p: 3, mb: 2 }}>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TrendingUpIcon color="primary" />
+              Quick Navigation & Real-time Access - Sidebar Routes
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={6} sm={4} md={3}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="small"
+                  startIcon={<ScheduleIcon />}
+                  onClick={() => handleNavigate('/employee/today-attendance', "Today's Attendance")}
+                  sx={{ py: 1 }}
+                >
+                  Today's Attendance
+                </Button>
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="small"
+                  startIcon={<PersonIcon />}
+                  onClick={() => handleNavigate('/employee/profile', 'My Profile')}
+                  sx={{ py: 1 }}
+                >
+                  My Profile
+                </Button>
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="small"
+                  startIcon={<SchoolIcon />}
+                  onClick={() => handleNavigate('/employee/my-certifications', 'Certifications & Skills')}
+                  sx={{ py: 1 }}
+                >
+                  Certifications & Skills
+                </Button>
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <Button
+                  variant="contained"
+                  fullWidth
+                  size="small"
+                  startIcon={<EventNoteIcon />}
+                  onClick={() => handleNavigate('/employee/my-leave-balance', 'Leave Balance')}
+                  sx={{ py: 1 }}
+                >
+                  Leave Balance
+                </Button>
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  size="small"
+                  startIcon={<EventNoteIcon />}
+                  onClick={() => handleNavigate('/employee/leave/apply', 'Apply Leave')}
+                  sx={{ py: 1 }}
+                >
+                  Apply Leave
+                </Button>
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  size="small"
+                  startIcon={<EventNoteIcon />}
+                  onClick={() => handleNavigate('/employee/leaves', 'My Leaves')}
+                  sx={{ py: 1 }}
+                >
+                  My Leaves
+                </Button>
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  size="small"
+                  startIcon={<TrendingUpIcon />}
+                  onClick={() => handleNavigate('/employee/quick-actions', 'Quick Actions')}
+                  sx={{ py: 1 }}
+                >
+                  Quick Actions
+                </Button>
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  size="small"
+                  startIcon={<PayrollIcon />}
+                  onClick={() => handleNavigate('/employee/payroll', 'Payroll')}
+                  sx={{ py: 1 }}
+                >
+                  Payroll
+                </Button>
+              </Grid>
+            </Grid>
+          </Paper>
         </Grid>
 
         {/* Today's Attendance - Enhanced with Real-Time Updates */}
@@ -826,14 +1088,14 @@ const EmployeeDashboard: React.FC = () => {
                 <Button
                   variant="outlined"
                   size="small"
-                  onClick={() => navigate('/employee/today-attendance')}
+                  onClick={() => handleNavigate('/employee/today-attendance', 'Attendance Details')}
                 >
                   View Details
                 </Button>
                 <Button
                   variant="text"
                   size="small"
-                  onClick={() => navigate('/employee/attendance')}
+                  onClick={() => handleNavigate('/employee/attendance', 'Attendance History')}
                 >
                   Full History
                 </Button>
@@ -897,128 +1159,205 @@ const EmployeeDashboard: React.FC = () => {
           </Card>
         </Grid>
 
-        {/* Certifications - Enhanced with Real-Time Data */}
-        <Grid item xs={12}>
-          <Card elevation={2}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
-                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <SchoolIcon color="primary" />
-                  Certifications & Skills
-                </Typography>
-                <Chip 
-                  label="Real-time" 
-                  size="small" 
-                  color="info" 
-                  variant="outlined"
-                />
-              </Stack>
-              
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Upload your certifications to improve salary predictions and career growth
-              </Typography>
-              
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="body2" fontWeight="bold">
-                    Current Certifications ({dashboardData?.certifications?.total || 0})
-                  </Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap" gap={1}>
-                    {dashboardData?.certifications?.categories?.map((category: any) => (
-                      <Chip 
-                        key={category.name}
-                        label={`${category.name} (${category.count})`} 
-                        size="small" 
-                        color="primary" 
-                      />
-                    )) || [
-                      <Chip key="default" label="No certifications yet" size="small" variant="outlined" />
-                    ]}
-                  </Stack>
-                </Box>
-                
-                <Divider />
-                
-                <Stack direction="row" spacing={2} flexWrap="wrap" gap={1}>
-                  <Button
-                    variant="contained"
-                    startIcon={<Upload />}
-                    onClick={() => setCertDialogOpen(true)}
-                  >
-                    Add Certificate
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() => navigate('/employee/my-certifications')}
-                  >
-                    View Details
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() => navigate('/certifications')}
-                  >
-                    Manage All
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="secondary"
-                    onClick={() => navigate('/salary-prediction')}
-                  >
-                    Salary Prediction
-                  </Button>
-                </Stack>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
+      
 
-        {/* Leave Balance */}
+        {/* Leave Balance - Enhanced with Real-time Updates */}
         <Grid item xs={12} md={6}>
           <Card elevation={2}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Leave Balance
-              </Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <EventNoteIcon color="primary" />
+                  Leave Balance
+                </Typography>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      bgcolor: 'success.main',
+                      animation: 'pulse 2s infinite',
+                      '@keyframes pulse': {
+                        '0%': { opacity: 1 },
+                        '50%': { opacity: 0.5 },
+                        '100%': { opacity: 1 },
+                      },
+                    }}
+                  />
+                  <Typography variant="caption" color="success.main">
+                    Live
+                  </Typography>
+                </Stack>
+              </Stack>
+
+              {/* Real-time Leave Balance Display */}
               <Stack spacing={2}>
                 <Box>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2">Casual Leave</Typography>
-                    <Chip 
-                      label={`${dashboardData?.leaveBalance?.casual || 0} days`}
-                      size="small"
-                      color="primary"
-                    />
+                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main' }} />
+                      Casual Leave
+                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Chip 
+                        label={`${dashboardData?.leaveBalance?.casual || 0} days`}
+                        size="small"
+                        color="primary"
+                        variant={(dashboardData?.leaveBalance?.casual || 0) > 0 ? "filled" : "outlined"}
+                      />
+                      {(dashboardData?.leaveBalance?.casual || 0) <= 2 && (dashboardData?.leaveBalance?.casual || 0) > 0 && (
+                        <Typography variant="caption" color="warning.main">
+                          Low
+                        </Typography>
+                      )}
+                    </Stack>
                   </Stack>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min((dashboardData?.leaveBalance?.casual || 0) / 12 * 100, 100)}
+                    sx={{ height: 4, borderRadius: 2, mt: 0.5, mb: 1 }}
+                    color="primary"
+                  />
                 </Box>
+
                 <Box>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2">Sick Leave</Typography>
-                    <Chip 
-                      label={`${dashboardData?.leaveBalance?.sick || 0} days`}
-                      size="small"
-                      color="secondary"
-                    />
+                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'secondary.main' }} />
+                      Sick Leave
+                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Chip 
+                        label={`${dashboardData?.leaveBalance?.sick || 0} days`}
+                        size="small"
+                        color="secondary"
+                        variant={(dashboardData?.leaveBalance?.sick || 0) > 0 ? "filled" : "outlined"}
+                      />
+                      {(dashboardData?.leaveBalance?.sick || 0) <= 2 && (dashboardData?.leaveBalance?.sick || 0) > 0 && (
+                        <Typography variant="caption" color="warning.main">
+                          Low
+                        </Typography>
+                      )}
+                    </Stack>
                   </Stack>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min((dashboardData?.leaveBalance?.sick || 0) / 10 * 100, 100)}
+                    sx={{ height: 4, borderRadius: 2, mt: 0.5, mb: 1 }}
+                    color="secondary"
+                  />
                 </Box>
+
                 <Box>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2">Annual Leave</Typography>
-                    <Chip 
-                      label={`${dashboardData?.leaveBalance?.annual || 0} days`}
-                      size="small"
-                      color="success"
-                    />
+                    <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main' }} />
+                      Annual Leave
+                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Chip 
+                        label={`${dashboardData?.leaveBalance?.annual || 0} days`}
+                        size="small"
+                        color="success"
+                        variant={(dashboardData?.leaveBalance?.annual || 0) > 0 ? "filled" : "outlined"}
+                      />
+                      {(dashboardData?.leaveBalance?.annual || 0) <= 3 && (dashboardData?.leaveBalance?.annual || 0) > 0 && (
+                        <Typography variant="caption" color="warning.main">
+                          Low
+                        </Typography>
+                      )}
+                    </Stack>
                   </Stack>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min((dashboardData?.leaveBalance?.annual || 0) / 21 * 100, 100)}
+                    sx={{ height: 4, borderRadius: 2, mt: 0.5, mb: 1 }}
+                    color="success"
+                  />
                 </Box>
               </Stack>
-              <Button 
-                variant="outlined" 
-                fullWidth 
-                sx={{ mt: 2 }}
-                onClick={() => navigate('/leaves')}
-              >
-                Apply for Leave
-              </Button>
+
+              {/* Real-time Leave Statistics */}
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  📊 Real-time Leave Statistics
+                </Typography>
+                <Stack direction="row" justifyContent="space-between" spacing={2}>
+                  <Box textAlign="center">
+                    <Typography variant="h6" color="primary.main">
+                      {(dashboardData?.leaveBalance?.casual || 0) + 
+                       (dashboardData?.leaveBalance?.sick || 0) + 
+                       (dashboardData?.leaveBalance?.annual || 0)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Total Available
+                    </Typography>
+                  </Box>
+                  <Box textAlign="center">
+                    <Typography variant="h6" color="warning.main">
+                      {dashboardData?.personalStats?.pendingLeaves || 0}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Pending Requests
+                    </Typography>
+                  </Box>
+                  <Box textAlign="center">
+                    <Typography variant="h6" color="success.main">
+                      {dashboardData?.personalStats?.approvedLeaves || 0}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      This Year
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Box>
+
+              {/* Enhanced Action Buttons */}
+              <Stack spacing={1} sx={{ mt: 2 }}>
+                <Button 
+                  variant="contained" 
+                  fullWidth 
+                  size="large"
+                  startIcon={<EventNoteIcon />}
+                  onClick={() => handleNavigate('/employee/leave/apply', 'Apply Leave')}
+                  sx={{ 
+                    py: 1.5,
+                    background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+                    '&:hover': {
+                      background: 'linear-gradient(45deg, #1976D2 30%, #0288D1 90%)',
+                    }
+                  }}
+                >
+                  Apply for Leave
+                </Button>
+                
+                <Stack direction="row" spacing={1}>
+                  <Button 
+                    variant="outlined" 
+                    size="small"
+                    fullWidth
+                    startIcon={<EventNoteIcon />}
+                    onClick={() => handleNavigate('/employee/my-leave-balance', 'Leave Balance Details')}
+                  >
+                    View Details
+                  </Button>
+                  <Button 
+                    variant="outlined" 
+                    size="small"
+                    fullWidth
+                    startIcon={<ScheduleIcon />}
+                    onClick={() => handleNavigate('/employee/leaves', 'My Leaves')}
+                  >
+                    Leave History
+                  </Button>
+                </Stack>
+              </Stack>
+
+              {/* Real-time Update Timestamp */}
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 2 }}>
+                🕐 Last updated: {lastUpdate?.toLocaleTimeString() || 'Loading...'}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -1142,20 +1481,145 @@ const EmployeeDashboard: React.FC = () => {
           </Card>
         </Grid>
 
+        {/* Recent Leave Requests with HR Notes - NEW SECTION */}
+        <Grid item xs={12}>
+          <Card elevation={2}>
+            <CardContent>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <EventNoteIcon color="primary" />
+                  Recent Leave Requests
+                </Typography>
+                <Chip 
+                  label="Real-time" 
+                  size="small" 
+                  color="success" 
+                  variant="outlined"
+                />
+              </Stack>
+
+              {dashboardData?.recentActivities && dashboardData.recentActivities.length > 0 ? (
+                <Stack spacing={2}>
+                  {dashboardData.recentActivities
+                    .filter(activity => activity.type === 'leave_request')
+                    .slice(0, 5)
+                    .map((activity, index) => (
+                    <Card 
+                      key={activity.id || index} 
+                      variant="outlined"
+                      sx={{ 
+                        border: activity.status === 'rejected' ? '1px solid #f44336' : 
+                               activity.status === 'approved' ? '1px solid #4caf50' : 
+                               '1px solid #ff9800',
+                        backgroundColor: activity.status === 'rejected' ? '#ffebee' : 
+                                       activity.status === 'approved' ? '#e8f5e8' : 
+                                       '#fff3e0'
+                      }}
+                    >
+                      <CardContent sx={{ p: 2 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                          <Box flex={1}>
+                            <Stack direction="row" alignItems="center" spacing={1} mb={1}>
+                              <Typography variant="subtitle2" fontWeight="bold">
+                                {activity.title}
+                              </Typography>
+                              <Chip 
+                                label={activity.status} 
+                                size="small" 
+                                color={
+                                  activity.status === 'approved' ? 'success' : 
+                                  activity.status === 'rejected' ? 'error' : 
+                                  'warning'
+                                }
+                              />
+                            </Stack>
+                            
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              {activity.description}
+                            </Typography>
+
+                            {/* Display HR Notes prominently */}
+                            {activity.hrNotes && (
+                              <Alert 
+                                severity={activity.status === 'approved' ? 'success' : 'error'} 
+                                sx={{ mt: 1, fontSize: '0.875rem' }}
+                              >
+                                <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                                  HR Feedback:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {activity.hrNotes}
+                                </Typography>
+                              </Alert>
+                            )}
+
+                            {/* Backward compatibility with rejectionReason */}
+                            {!activity.hrNotes && activity.rejectionReason && (
+                              <Alert severity="error" sx={{ mt: 1, fontSize: '0.875rem' }}>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                                  Rejection Reason:
+                                </Typography>
+                                <Typography variant="body2">
+                                  {activity.rejectionReason}
+                                </Typography>
+                              </Alert>
+                            )}
+
+                            <Typography variant="caption" color="text.secondary" display="block" mt={1}>
+                              Applied: {new Date(activity.timestamp).toLocaleDateString()}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  <Box textAlign="center" mt={2}>
+                    <Button 
+                      variant="outlined" 
+                      onClick={() => handleNavigate('/employee/leaves', 'My Leaves')}
+                      startIcon={<EventNoteIcon />}
+                    >
+                      View All Leave Requests
+                    </Button>
+                  </Box>
+                </Stack>
+              ) : (
+                <Box textAlign="center" py={4}>
+                  <EventNoteIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                    No Leave Requests Yet
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Your recent leave applications and HR feedback will appear here
+                  </Typography>
+                  <Button 
+                    variant="contained" 
+                    onClick={() => handleNavigate('/employee/leave/apply', 'Apply Leave')}
+                    startIcon={<EventNoteIcon />}
+                  >
+                    Apply for Leave
+                  </Button>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
         {/* Payroll & Salary Records - NEW SECTION */}
         <Grid item xs={12}>
           <PayrollSection userEmployeeId={user?.id} />
         </Grid>
 
-        {/* Quick Actions for Employees - Enhanced */}
+        {/* Quick Actions for Employees - Following Sidebar Structure */}
         <Grid item xs={12}>
           <Paper elevation={2} sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <TrendingUpIcon color="primary" />
-              Employee Quick Actions - Navigate to Sections
+              Employee Quick Actions - Sidebar Navigation Routes
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Access individual components for detailed management
+              Access all sidebar sections from here - exact same routes as sidebar
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6} md={3}>
@@ -1163,7 +1627,7 @@ const EmployeeDashboard: React.FC = () => {
                   variant="contained"
                   fullWidth
                   startIcon={<ScheduleIcon />}
-                  onClick={() => navigate('/employee/today-attendance')}
+                  onClick={() => handleNavigate('/employee/today-attendance', "Today's Attendance")}
                   sx={{ py: 1.5 }}
                 >
                   Today's Attendance
@@ -1174,11 +1638,11 @@ const EmployeeDashboard: React.FC = () => {
                   variant="contained"
                   color="secondary"
                   fullWidth
-                  startIcon={<SchoolIcon />}
-                  onClick={() => navigate('/employee/my-certifications')}
+                  startIcon={<PersonIcon />}
+                  onClick={() => handleNavigate('/employee/profile', 'My Profile')}
                   sx={{ py: 1.5 }}
                 >
-                  Certifications & Skills
+                  My Profile
                 </Button>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
@@ -1186,22 +1650,22 @@ const EmployeeDashboard: React.FC = () => {
                   variant="contained"
                   color="success"
                   fullWidth
-                  startIcon={<EventNoteIcon />}
-                  onClick={() => navigate('/employee/my-leave-balance')}
+                  startIcon={<SchoolIcon />}
+                  onClick={() => handleNavigate('/employee/my-certifications', 'Certifications & Skills')}
                   sx={{ py: 1.5 }}
                 >
-                  Leave Balance
+                  Certifications & Skills
                 </Button>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
                 <Button
                   variant="outlined"
                   fullWidth
-                  startIcon={<TrendingUpIcon />}
-                  onClick={() => navigate('/employee/quick-actions')}
+                  startIcon={<EventNoteIcon />}
+                  onClick={() => handleNavigate('/employee/my-leave-balance', 'Leave Balance')}
                   sx={{ py: 1.5 }}
                 >
-                  More Actions
+                  Leave Balance
                 </Button>
               </Grid>
             </Grid>
@@ -1211,25 +1675,33 @@ const EmployeeDashboard: React.FC = () => {
                 variant="outlined"
                 size="small"
                 startIcon={<EventNoteIcon />}
-                onClick={() => navigate('/employee/leave/apply')}
+                onClick={() => handleNavigate('/employee/leave/apply', 'Apply Leave')}
               >
                 Apply Leave
               </Button>
               <Button
                 variant="outlined"
                 size="small"
-                startIcon={<PersonIcon />}
-                onClick={() => navigate('/employee/profile')}
+                startIcon={<EventNoteIcon />}
+                onClick={() => handleNavigate('/employee/leaves', 'My Leaves')}
               >
-                Edit Profile
+                My Leaves
               </Button>
               <Button
                 variant="outlined"
                 size="small"
                 startIcon={<TrendingUpIcon />}
-                onClick={() => navigate('/salary-prediction')}
+                onClick={() => handleNavigate('/employee/quick-actions', 'Quick Actions')}
               >
-                Salary Prediction
+                Quick Actions
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<PayrollIcon />}
+                onClick={() => handleNavigate('/employee/payroll', 'Payroll')}
+              >
+                Payroll
               </Button>
             </Stack>
           </Paper>
@@ -1262,69 +1734,7 @@ const EmployeeDashboard: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Add Certification Dialog */}
-      <Dialog open={certDialogOpen} onClose={() => setCertDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Certification</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <TextField
-              label="Certification Name"
-              value={newCertification.name}
-              onChange={(e) => setNewCertification(prev => ({ ...prev, name: e.target.value }))}
-              fullWidth
-            />
-            <TextField
-              label="Issuing Organization"
-              value={newCertification.issuingOrganization}
-              onChange={(e) => setNewCertification(prev => ({ ...prev, issuingOrganization: e.target.value }))}
-              fullWidth
-            />
-            <TextField
-              label="Category"
-              select
-              value={newCertification.category}
-              onChange={(e) => setNewCertification(prev => ({ ...prev, category: e.target.value }))}
-              fullWidth
-            >
-              <MenuItem value="Technical">Technical</MenuItem>
-              <MenuItem value="Management">Management</MenuItem>
-              <MenuItem value="Language">Language</MenuItem>
-              <MenuItem value="Safety">Safety</MenuItem>
-              <MenuItem value="Other">Other</MenuItem>
-            </TextField>
-            <TextField
-              label="Issue Date"
-              type="date"
-              value={newCertification.issueDate}
-              onChange={(e) => setNewCertification(prev => ({ ...prev, issueDate: e.target.value }))}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
-            <TextField
-              label="Expiration Date"
-              type="date"
-              value={newCertification.expirationDate}
-              onChange={(e) => setNewCertification(prev => ({ ...prev, expirationDate: e.target.value }))}
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-            />
-            <TextField
-              label="Description"
-              multiline
-              rows={3}
-              value={newCertification.description}
-              onChange={(e) => setNewCertification(prev => ({ ...prev, description: e.target.value }))}
-              fullWidth
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCertDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleCertificationSubmit} variant="contained">
-            Add Certification
-          </Button>
-        </DialogActions>
-      </Dialog>
+      
 
       {/* Snackbar for notifications */}
       <Snackbar

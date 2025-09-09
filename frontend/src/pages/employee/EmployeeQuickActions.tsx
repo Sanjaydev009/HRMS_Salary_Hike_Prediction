@@ -139,14 +139,7 @@ const EmployeeQuickActions: React.FC = () => {
       color: '#009688',
       category: 'management',
     },
-    {
-      title: 'Training & Learning',
-      description: 'Access training programs and resources',
-      icon: <SchoolIcon />,
-      path: '/employee/training',
-      color: '#cddc39',
-      category: 'management',
-    },
+    
   ];
 
   const renderActionCard = (action: QuickAction) => (

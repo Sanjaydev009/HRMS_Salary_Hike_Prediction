@@ -387,16 +387,30 @@ router.get('/employee-stats', auth, async (req, res) => {
     const recentLeaves = await Leave.find({ employeeId: userId })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('leaveType status startDate endDate createdAt');
+      .select('leaveType status startDate endDate createdAt hrNotes rejectionReason approvedBy')
+      .populate('approvedBy', 'profile.firstName profile.lastName');
     
     recentLeaves.forEach(leave => {
+      let description = `${leave.leaveType} leave from ${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()}`;
+      
+      // Add HR feedback to description if available
+      if (leave.status === 'rejected' && leave.hrNotes) {
+        description += ` - HR: ${leave.hrNotes}`;
+      } else if (leave.status === 'approved' && leave.hrNotes) {
+        description += ` - HR: ${leave.hrNotes}`;
+      }
+      
       recentActivities.push({
         id: `leave_${leave._id}`,
         type: 'leave_request',
         title: 'Your Leave Request',
-        description: `${leave.leaveType} leave from ${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()}`,
+        description: description,
         timestamp: leave.createdAt,
-        isPersonal: true
+        isPersonal: true,
+        status: leave.status,
+        hrNotes: leave.hrNotes,
+        rejectionReason: leave.rejectionReason,
+        approvedBy: leave.approvedBy
       });
     });
     
@@ -485,17 +499,30 @@ router.get('/user', auth, async (req, res) => {
           const recentLeaves = await Leave.find({ employeeId: userId })
             .sort({ createdAt: -1 })
             .limit(5)
-            .select('leaveType status startDate endDate createdAt');
+            .select('leaveType status startDate endDate createdAt hrNotes rejectionReason approvedBy')
+            .populate('approvedBy', 'profile.firstName profile.lastName');
           
           recentLeaves.forEach(leave => {
+            let description = `${leave.leaveType} leave from ${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()}`;
+            
+            // Add HR feedback to description if available
+            if (leave.status === 'rejected' && leave.hrNotes) {
+              description += ` - HR: ${leave.hrNotes}`;
+            } else if (leave.status === 'approved' && leave.hrNotes) {
+              description += ` - HR: ${leave.hrNotes}`;
+            }
+            
             recentActivities.push({
               id: `leave_${leave._id}`,
               type: 'leave_request',
               title: 'Your Leave Request',
-              description: `${leave.leaveType} leave from ${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()}`,
+              description: description,
               timestamp: leave.createdAt,
               isPersonal: true,
-              status: leave.status
+              status: leave.status,
+              hrNotes: leave.hrNotes,
+              rejectionReason: leave.rejectionReason,
+              approvedBy: leave.approvedBy
             });
           });
           
@@ -692,17 +719,30 @@ router.get('/employee', auth, async (req, res) => {
     const recentLeaves = await Leave.find({ employeeId: userId })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('leaveType status startDate endDate createdAt');
+      .select('leaveType status startDate endDate createdAt hrNotes rejectionReason approvedBy')
+      .populate('approvedBy', 'profile.firstName profile.lastName');
     
     recentLeaves.forEach(leave => {
+      let description = `${leave.leaveType} leave from ${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()}`;
+      
+      // Add HR feedback to description if available
+      if (leave.status === 'rejected' && leave.hrNotes) {
+        description += ` - HR: ${leave.hrNotes}`;
+      } else if (leave.status === 'approved' && leave.hrNotes) {
+        description += ` - HR: ${leave.hrNotes}`;
+      }
+      
       recentActivities.push({
         id: `leave_${leave._id}`,
         type: 'leave_request',
         title: 'Your Leave Request',
-        description: `${leave.leaveType} leave from ${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()}`,
+        description: description,
         timestamp: leave.createdAt,
         isPersonal: true,
-        status: leave.status
+        status: leave.status,
+        hrNotes: leave.hrNotes,
+        rejectionReason: leave.rejectionReason,
+        approvedBy: leave.approvedBy
       });
     });
     

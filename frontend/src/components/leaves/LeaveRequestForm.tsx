@@ -99,6 +99,10 @@ const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
   const [availableDays, setAvailableDays] = useState<number>(0);
 
   useEffect(() => {
+    console.log('DEBUG: LeaveRequestForm received props:', { request, mode });
+    console.log('DEBUG: Request HR Notes:', request?.hrNotes);
+    console.log('DEBUG: Request Rejection Reason:', request?.rejectionReason);
+    
     if (request && mode !== 'add') {
       setFormData({
         employeeId: request.employeeId,
