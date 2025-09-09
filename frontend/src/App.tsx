@@ -42,6 +42,9 @@ import EmployeePayroll from './pages/employee/EmployeePayroll';
 import EmployeeLeaveApply from './pages/employee/EmployeeLeaveApply';
 import EmployeeLeaveBalance from './pages/employee/EmployeeLeaveBalance';
 import EmployeeQuickActions from './pages/employee/EmployeeQuickActions';
+import EmployeeLeaveCalendar from './pages/employee/EmployeeLeaveCalendar';
+import EmployeeHolidays from './pages/employee/EmployeeHolidays';
+import EmployeeSupport from './pages/employee/EmployeeSupport';
 import PlaceholderPage from './components/common/PlaceholderPage';
 import CalendarTest from './components/debug/CalendarTest';
 
@@ -321,6 +324,30 @@ function App() {
               <ProtectedRoute>
                 <RoleBasedLayout>
                   <EmployeeQuickActions />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/employee/leave-calendar" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <EmployeeLeaveCalendar />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/employee/holidays" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <EmployeeHolidays />
+                </RoleBasedLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/employee/support" element={
+              <ProtectedRoute>
+                <RoleBasedLayout>
+                  <EmployeeSupport />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
