@@ -168,6 +168,8 @@ const LeaveManagement: React.FC = () => {
           rejectionReason: leave.rejectionReason,
         }));
 
+        console.log('DEBUG: Raw API data:', response.data.leaves);
+        console.log('DEBUG: Sample raw leave:', response.data.leaves[0]);
         setLeaveRequests(transformedRequests);
         console.log('Transformed requests:', transformedRequests); // Debug log
       } else {
@@ -213,6 +215,9 @@ const LeaveManagement: React.FC = () => {
   const handleViewRequest = (id: string) => {
     const request = leaveRequests.find(req => req.id === id);
     if (request) {
+      console.log('DEBUG: Selected request for viewing:', request);
+      console.log('DEBUG: HR Notes in selected request:', request.hrNotes);
+      console.log('DEBUG: Rejection reason in selected request:', request.rejectionReason);
       setSelectedRequest(request);
       setFormOpen(true);
     }

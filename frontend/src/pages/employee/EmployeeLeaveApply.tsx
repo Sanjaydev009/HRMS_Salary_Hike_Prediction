@@ -90,8 +90,21 @@ const EmployeeLeaveApply: React.FC = () => {
     if (formData.startDate && formData.endDate) {
       const start = new Date(formData.startDate);
       const end = new Date(formData.endDate);
-      const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      return formData.halfDay ? diff / 2 : diff;
+      
+      // Calculate working days (excluding weekends) to match backend logic
+      let workingDays = 0;
+      const currentDate = new Date(start);
+      
+      while (currentDate <= end) {
+        const dayOfWeek = currentDate.getDay();
+        // Skip weekends (Sunday = 0, Saturday = 6)
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+          workingDays++;
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      return formData.halfDay ? workingDays / 2 : workingDays;
     }
     return 0;
   };

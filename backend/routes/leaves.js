@@ -62,9 +62,15 @@ router.get('/', auth, async (req, res) => {
 // @access  Private (Employee only)
 router.get('/my', auth, async (req, res) => {
   try {
+    console.log('DEBUG: /my endpoint called');
+    console.log('DEBUG: User ID from auth:', req.user._id);
+    console.log('DEBUG: User role from auth:', req.user.role);
+    
     const { status, leaveType, year = new Date().getFullYear(), page = 1, limit = 10 } = req.query;
     
     let query = { employeeId: req.user._id };
+    
+    console.log('DEBUG: Base query:', query);
     
     // Apply filters
     if (status) query.status = status;
@@ -76,7 +82,10 @@ router.get('/my', auth, async (req, res) => {
       const endOfYear = new Date(year, 11, 31);
       query.startDate = { $gte: startOfYear };
       query.endDate = { $lte: endOfYear };
+      console.log('DEBUG: Year filter applied:', { year, startOfYear, endOfYear });
     }
+    
+    console.log('DEBUG: Final query:', query);
 
     const leaves = await Leave.find(query)
       .populate('approvedBy', 'profile.firstName profile.lastName')
@@ -84,11 +93,14 @@ router.get('/my', auth, async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
+    console.log('DEBUG: Found leaves count:', leaves.length);
     console.log('DEBUG: Employee leaves data:', JSON.stringify(leaves.map(l => ({
       id: l._id, 
       status: l.status, 
       hrNotes: l.hrNotes, 
-      rejectionReason: l.rejectionReason
+      rejectionReason: l.rejectionReason,
+      startDate: l.startDate,
+      endDate: l.endDate
     })), null, 2));
 
     const total = await Leave.countDocuments(query);
