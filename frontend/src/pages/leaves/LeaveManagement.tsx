@@ -317,14 +317,7 @@ const LeaveManagement: React.FC = () => {
           <Typography variant="h4" component="h1">
             Leave Management
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={handleNewRequest}
-            disabled={loading}
-          >
-            Request Leave
-          </Button>
+
         </Box>
 
         <Typography variant="body1" color="text.secondary" gutterBottom>

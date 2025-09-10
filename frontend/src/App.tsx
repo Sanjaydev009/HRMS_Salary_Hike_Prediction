@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, CssBaseline, Box } from '@mui/material';
+import { ThemeProvider, CssBaseline, Box, Typography } from '@mui/material';
 import { Provider } from 'react-redux';
 import { store } from './store/store';
 import theme from './theme/theme';
@@ -150,22 +150,7 @@ function App() {
             <Route path="/payroll/payslips" element={
               <ProtectedRoute allowedRoles={['hr', 'admin']}>
                 <RoleBasedLayout>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    minHeight: '60vh',
-                    flexDirection: 'column',
-                    gap: 2
-                  }}>
-                    <Box sx={{ fontSize: '3rem' }}>🧾</Box>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <h2 style={{ margin: 0, color: theme.palette.text.primary }}>Payslip Viewer</h2>
-                      <p style={{ color: theme.palette.text.secondary, margin: '8px 0 0 0' }}>
-                        View and download employee payslips
-                      </p>
-                    </Box>
-                  </Box>
+                  <PayrollManagement />
                 </RoleBasedLayout>
               </ProtectedRoute>
             } />
@@ -173,20 +158,15 @@ function App() {
             <Route path="/payroll/calculator" element={
               <ProtectedRoute allowedRoles={['hr', 'admin']}>
                 <RoleBasedLayout>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    minHeight: '60vh',
-                    flexDirection: 'column',
-                    gap: 2
-                  }}>
-                    <Box sx={{ fontSize: '3rem' }}>🧮</Box>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <h2 style={{ margin: 0, color: theme.palette.text.primary }}>Salary Calculator</h2>
-                      <p style={{ color: theme.palette.text.secondary, margin: '8px 0 0 0' }}>
-                        Calculate salaries and tax deductions
-                      </p>
+                  <Box sx={{ p: 3 }}>
+                    <Typography variant="h4" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
+                      💰 Salary Calculator
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+                      Calculate employee salaries with allowances, deductions, and tax calculations.
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                      <PayrollManagement />
                     </Box>
                   </Box>
                 </RoleBasedLayout>
