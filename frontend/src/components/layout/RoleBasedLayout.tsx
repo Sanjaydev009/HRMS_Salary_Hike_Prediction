@@ -390,6 +390,7 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
               fontSize: '1.2rem',
               fontWeight: 'bold',
             }}
+            src={user?.profile?.profilePicture || undefined}
           >
             {user?.profile?.firstName?.[0] || user?.email?.[0]?.toUpperCase()}
           </Avatar>
@@ -507,6 +508,7 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
                     border: `2px solid ${getRoleColor(user?.role || '')}20`,
                     boxShadow: `0 2px 8px ${getRoleColor(user?.role || '')}30`,
                   }}
+                  src={user?.profile?.profilePicture || undefined}
                 >
                   {user?.profile?.firstName?.[0] || user?.email?.[0]?.toUpperCase()}
                   {user?.profile?.lastName?.[0] || ''}
@@ -642,6 +644,7 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
                 border: `3px solid ${getRoleColor(user?.role || '')}20`,
                 boxShadow: `0 4px 12px ${getRoleColor(user?.role || '')}30`,
               }}
+              src={user?.profile?.profilePicture || undefined}
             >
               {user?.profile?.firstName?.[0] || user?.email?.[0]?.toUpperCase()}
               {user?.profile?.lastName?.[0] || ''}

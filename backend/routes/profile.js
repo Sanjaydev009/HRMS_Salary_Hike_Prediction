@@ -78,6 +78,8 @@ router.post('/upload-photo', auth, upload.single('profilePhoto'), async (req, re
 // @access  Private (Employee only)
 router.put('/update', auth, async (req, res) => {
   try {
+    console.log('Profile update request body:', req.body); // Debug log
+    
     const {
       firstName,
       lastName,
@@ -85,6 +87,8 @@ router.put('/update', auth, async (req, res) => {
       dateOfBirth,
       address,
       emergencyContact,
+      emergencyContactName,
+      emergencyContactPhone,
       skills,
       bio
     } = req.body;
@@ -95,7 +99,17 @@ router.put('/update', auth, async (req, res) => {
     if (phone) updateData['profile.phone'] = phone;
     if (dateOfBirth) updateData['profile.dateOfBirth'] = new Date(dateOfBirth);
     if (address) updateData['profile.address'] = address;
-    if (emergencyContact) updateData['profile.emergencyContact'] = emergencyContact;
+    
+    // Handle emergency contact object
+    if (emergencyContactName || emergencyContactPhone || emergencyContact) {
+      updateData['emergencyContact'] = {
+        name: emergencyContactName || emergencyContact?.name || '',
+        phone: emergencyContactPhone || emergencyContact?.phone || emergencyContact || '',
+        relationship: emergencyContact?.relationship || 'Emergency Contact',
+        email: emergencyContact?.email || ''
+      };
+    }
+    
     if (skills) updateData['profile.skills'] = skills;
     if (bio) updateData['profile.bio'] = bio;
 
