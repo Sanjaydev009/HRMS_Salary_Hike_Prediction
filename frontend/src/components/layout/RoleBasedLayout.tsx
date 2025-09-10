@@ -21,6 +21,7 @@ import {
   useMediaQuery,
   Collapse,
   Stack,
+  Paper,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -472,23 +473,75 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
           </Typography>
           
           <Stack direction="row" alignItems="center" spacing={1}>
-            <IconButton color="inherit">
+            <IconButton 
+              color="inherit"
+              sx={{
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                  transform: 'scale(1.05)',
+                  transition: 'all 0.2s ease-in-out',
+                }
+              }}
+            >
               <Badge badgeContent={4} color="error">
                 <NotificationsIcon />
               </Badge>
             </IconButton>
             
-            <IconButton onClick={handleProfileMenuOpen} sx={{ ml: 1 }}>
-              <Avatar
-                sx={{
-                  bgcolor: getRoleColor(user?.role || ''),
-                  width: 32,
-                  height: 32,
-                  fontSize: '0.875rem',
-                }}
-              >
-                {user?.profile?.firstName?.[0] || user?.email?.[0]?.toUpperCase()}
-              </Avatar>
+            <IconButton 
+              onClick={handleProfileMenuOpen} 
+              sx={{ 
+                ml: 1,
+                border: `2px solid transparent`,
+                '&:hover': {
+                  border: `2px solid ${getRoleColor(user?.role || '')}40`,
+                  transform: 'scale(1.05)',
+                  transition: 'all 0.2s ease-in-out',
+                }
+              }}
+            >
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Avatar
+                  sx={{
+                    bgcolor: getRoleColor(user?.role || ''),
+                    width: 36,
+                    height: 36,
+                    fontSize: '0.875rem',
+                    fontWeight: 'bold',
+                    border: `2px solid ${getRoleColor(user?.role || '')}20`,
+                    boxShadow: `0 2px 8px ${getRoleColor(user?.role || '')}30`,
+                  }}
+                >
+                  {user?.profile?.firstName?.[0] || user?.email?.[0]?.toUpperCase()}
+                  {user?.profile?.lastName?.[0] || ''}
+                </Avatar>
+                
+                {/* Professional user info beside avatar - only on larger screens */}
+                <Box sx={{ display: { xs: 'none', md: 'block' }, textAlign: 'left', ml: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2, color: 'text.primary' }}>
+                    {user?.profile?.firstName} {user?.profile?.lastName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1 }}>
+                    {user?.role ? (user.role.charAt(0).toUpperCase() + user.role.slice(1)) : 'User'} • {user?.jobDetails?.department || 'General'}
+                  </Typography>
+                </Box>
+                
+                {/* Status indicator dot */}
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: 'success.main', // Always show as active for now
+                    border: '2px solid white',
+                    position: 'absolute',
+                    top: 8,
+                    right: user?.profile?.firstName && user?.profile?.lastName ? 90 : 8,
+                    boxShadow: '0 0 0 2px rgba(255,255,255,0.8)',
+                    display: { xs: 'block', md: 'none' }, // Only show on mobile when text is hidden
+                  }}
+                />
+              </Stack>
             </IconButton>
           </Stack>
         </Toolbar>
@@ -554,26 +607,286 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
         onClose={handleProfileMenuClose}
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        PaperProps={{
+          elevation: 3,
+          sx: {
+            mt: 1,
+            minWidth: 280,
+            borderRadius: 3,
+            border: `1px solid ${theme.palette.divider}`,
+            background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+            '&:before': {
+              content: '""',
+              display: 'block',
+              position: 'absolute',
+              top: 0,
+              right: 14,
+              width: 10,
+              height: 10,
+              bgcolor: 'background.paper',
+              transform: 'translateY(-50%) rotate(45deg)',
+              zIndex: 0,
+              border: `1px solid ${theme.palette.divider}`,
+              borderBottom: 'none',
+              borderRight: 'none',
+            },
+          },
+        }}
       >
-        <MenuItem onClick={() => { navigate('/profile'); handleProfileMenuClose(); }}>
-          <ListItemIcon>
-            <PersonIcon fontSize="small" />
-          </ListItemIcon>
-          Profile
-        </MenuItem>
-        <MenuItem onClick={() => { navigate('/settings'); handleProfileMenuClose(); }}>
-          <ListItemIcon>
-            <SettingsIcon fontSize="small" />
-          </ListItemIcon>
-          Settings
-        </MenuItem>
-        <Divider />
-        <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
-          <ListItemIcon>
-            <LogoutIcon fontSize="small" sx={{ color: 'error.main' }} />
-          </ListItemIcon>
-          Logout
-        </MenuItem>
+        {/* Professional User Profile Header */}
+        <Box sx={{ px: 3, py: 2, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Avatar
+              sx={{
+                bgcolor: getRoleColor(user?.role || ''),
+                width: 56,
+                height: 56,
+                fontSize: '1.5rem',
+                fontWeight: 'bold',
+                border: `3px solid ${getRoleColor(user?.role || '')}20`,
+                boxShadow: `0 4px 12px ${getRoleColor(user?.role || '')}30`,
+              }}
+            >
+              {user?.profile?.firstName?.[0] || user?.email?.[0]?.toUpperCase()}
+              {user?.profile?.lastName?.[0] || ''}
+            </Avatar>
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                {user?.profile?.firstName} {user?.profile?.lastName}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                {user?.jobDetails?.designation || 'Employee'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                {user?.jobDetails?.department || 'General'}
+              </Typography>
+              <Chip
+                label={user?.role?.toUpperCase()}
+                size="small"
+                sx={{
+                  mt: 0.5,
+                  bgcolor: getRoleColor(user?.role || '') + '20',
+                  color: getRoleColor(user?.role || ''),
+                  fontWeight: 600,
+                  fontSize: '0.7rem',
+                  height: 22,
+                  border: `1px solid ${getRoleColor(user?.role || '')}40`,
+                }}
+              />
+            </Box>
+          </Stack>
+          
+          {/* Employee ID and Status */}
+          <Box sx={{ mt: 2, p: 1.5, bgcolor: 'grey.50', borderRadius: 2 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="caption" color="text.secondary">
+                Employee ID: {user?.employeeId || 'N/A'}
+              </Typography>
+              <Chip 
+                label="Active"
+                size="small"
+                color="success"
+                sx={{ fontSize: '0.7rem', height: 18 }}
+              />
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Last login: {new Date().toLocaleDateString()}
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Professional Menu Items */}
+        <Box sx={{ py: 1 }}>
+          <MenuItem 
+            onClick={() => { navigate('/employee/profile'); handleProfileMenuClose(); }}
+            sx={{ 
+              px: 3, 
+              py: 1.5, 
+              '&:hover': { 
+                bgcolor: 'primary.50',
+                '& .MuiListItemIcon-root': { color: 'primary.main' },
+                '& .MuiTypography-root': { color: 'primary.main' }
+              }
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <PersonIcon fontSize="small" />
+            </ListItemIcon>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                My Profile
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                View and edit personal information
+              </Typography>
+            </Box>
+          </MenuItem>
+
+          <MenuItem 
+            onClick={() => { navigate('/employee/my-certifications'); handleProfileMenuClose(); }}
+            sx={{ 
+              px: 3, 
+              py: 1.5,
+              '&:hover': { 
+                bgcolor: 'secondary.50',
+                '& .MuiListItemIcon-root': { color: 'secondary.main' },
+                '& .MuiTypography-root': { color: 'secondary.main' }
+              }
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <School fontSize="small" />
+            </ListItemIcon>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                Certifications
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Manage your skills and certificates
+              </Typography>
+            </Box>
+          </MenuItem>
+
+          <MenuItem 
+            onClick={() => { navigate('/employee/payroll'); handleProfileMenuClose(); }}
+            sx={{ 
+              px: 3, 
+              py: 1.5,
+              '&:hover': { 
+                bgcolor: 'success.50',
+                '& .MuiListItemIcon-root': { color: 'success.main' },
+                '& .MuiTypography-root': { color: 'success.main' }
+              }
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <PaymentIcon fontSize="small" />
+            </ListItemIcon>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                Payroll & Salary
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                View payslips and salary details
+              </Typography>
+            </Box>
+          </MenuItem>
+
+          <MenuItem 
+            onClick={() => { navigate('/employee/leaves'); handleProfileMenuClose(); }}
+            sx={{ 
+              px: 3, 
+              py: 1.5,
+              '&:hover': { 
+                bgcolor: 'info.50',
+                '& .MuiListItemIcon-root': { color: 'info.main' },
+                '& .MuiTypography-root': { color: 'info.main' }
+              }
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <EventNoteIcon fontSize="small" />
+            </ListItemIcon>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                Leave Management
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Apply and track leave requests
+              </Typography>
+            </Box>
+          </MenuItem>
+
+          <MenuItem 
+            onClick={() => { navigate('/employee/support'); handleProfileMenuClose(); }}
+            sx={{ 
+              px: 3, 
+              py: 1.5,
+              '&:hover': { 
+                bgcolor: 'grey.100',
+                '& .MuiListItemIcon-root': { color: 'grey.700' },
+                '& .MuiTypography-root': { color: 'grey.700' }
+              }
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <Support fontSize="small" />
+            </ListItemIcon>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                Help & Support
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Get help and submit tickets
+              </Typography>
+            </Box>
+          </MenuItem>
+        </Box>
+
+        <Divider sx={{ mx: 2 }} />
+        
+        {/* Professional Logout Section */}
+        <Box sx={{ p: 2 }}>
+          <MenuItem 
+            onClick={handleLogout} 
+            sx={{ 
+              px: 2, 
+              py: 1.5, 
+              borderRadius: 2,
+              backgroundColor: 'error.50',
+              border: '1px solid',
+              borderColor: 'error.200',
+              '&:hover': { 
+                bgcolor: 'error.100',
+                borderColor: 'error.300',
+                '& .MuiListItemIcon-root': { color: 'error.dark' },
+                '& .MuiTypography-root': { color: 'error.dark' }
+              }
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40, color: 'error.main' }}>
+              <LogoutIcon fontSize="small" />
+            </ListItemIcon>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: 'error.main' }}>
+                Sign Out
+              </Typography>
+              <Typography variant="caption" color="error.main" sx={{ opacity: 0.8 }}>
+                Securely logout from your account
+              </Typography>
+            </Box>
+          </MenuItem>
+        </Box>
+
+        {/* Footer with App Info */}
+        <Box sx={{ px: 3, py: 2, borderTop: `1px solid ${theme.palette.divider}`, bgcolor: 'grey.25' }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="caption" color="text.secondary">
+              HRMS v2.0
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <IconButton 
+                size="small" 
+                sx={{ 
+                  color: 'text.secondary',
+                  '&:hover': { color: 'primary.main', bgcolor: 'primary.50' }
+                }}
+                onClick={() => { navigate('/employee/support'); handleProfileMenuClose(); }}
+              >
+                <Help fontSize="small" />
+              </IconButton>
+              <IconButton 
+                size="small" 
+                sx={{ 
+                  color: 'text.secondary',
+                  '&:hover': { color: 'primary.main', bgcolor: 'primary.50' }
+                }}
+              >
+                <NotificationsIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+          </Stack>
+        </Box>
       </Menu>
     </Box>
   );
