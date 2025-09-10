@@ -104,14 +104,7 @@ const EmployeeQuickActions: React.FC = () => {
       color: '#e91e63',
       category: 'secondary',
     },
-    {
-      title: 'Performance Analytics',
-      description: 'View your performance metrics',
-      icon: <AssessmentIcon />,
-      path: '/employee/performance',
-      color: '#607d8b',
-      category: 'secondary',
-    },
+    
   ];
 
   const managementActions: QuickAction[] = [
