@@ -160,11 +160,11 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
             icon: <PaymentIcon />,
             path: '/payroll',
           },
-          {
-            text: 'Certifications',
-            icon: <School />,
-            path: '/certifications',
-          },
+          // {
+          //   text: 'Certifications',
+          //   icon: <School />,
+          //   path: '/certifications',
+          // },
           {
             text: 'Analytics & Reports',
             icon: <AnalyticsIcon />,
@@ -200,17 +200,13 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
           {
             text: 'Payroll Management',
             icon: <PaymentIcon />,
-            children: [
-              { text: 'Process Payroll', icon: <MonetizationOn />, path: '/payroll' },
-              { text: 'Payslips', icon: <Receipt />, path: '/payroll/payslips' },
-              { text: 'Salary Calculator', icon: <Calculate />, path: '/payroll/calculator' },
-            ],
+            path: '/payroll',
           },
-          {
-            text: 'Certifications',
-            icon: <School />,
-            path: '/certifications',
-          },
+          // {
+          //   text: 'Certifications',
+          //   icon: <School />,
+          //   path: '/certifications',
+          // },
           {
             text: 'Analytics',
             icon: <AnalyticsIcon />,

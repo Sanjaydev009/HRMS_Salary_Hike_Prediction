@@ -280,13 +280,6 @@ const EmployeeLeaves: React.FC = () => {
               <Refresh />
             </IconButton>
           </Tooltip>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => setDialogOpen(true)}
-          >
-            Apply for Leave
-          </Button>
         </Box>
       </Box>
 
