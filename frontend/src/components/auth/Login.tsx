@@ -49,13 +49,13 @@ const Login: React.FC = () => {
           localStorage.setItem('userRole', 'hr');
           localStorage.setItem('userName', 'HR Manager');
           window.location.href = '/dashboard';
-        } else if (email === 'employee@company.com' && password === 'password123') {
+        } else if (email === 'bandisanjay1430@gmail.com' && password === '2Ta#eR66paQ') {
           localStorage.setItem('isAuthenticated', 'true');
           localStorage.setItem('userRole', 'employee');
-          localStorage.setItem('userName', 'John Employee');
+          localStorage.setItem('userName', 'Sanjay Bandi');
           window.location.href = '/dashboard';
         } else {
-          setError('Invalid credentials. Try hr@company.com / password123 or employee@company.com / password123');
+          setError('Invalid credentials. Try hr@company.com / password123 or bandisanjay1430@gmail.com / 2Ta#eR66paQ');
         }
       }, 1000);
     } catch (err) {
@@ -149,7 +149,7 @@ const Login: React.FC = () => {
                 <br />
                 HR: hr@company.com / password123
                 <br />
-                Employee: employee@company.com / password123
+                Employee: bandisanjay1430@gmail.com / 2Ta#eR66paQ
               </Typography>
             </Box>
           </Box>

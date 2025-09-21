@@ -442,11 +442,11 @@ const ProfessionalHRDashboard: React.FC = () => {
           <Typography variant="h5" fontWeight={600}>
             📊 Advanced HR Analytics
           </Typography>
-          <ButtonGroup variant="outlined" size="small">
+          {/* <ButtonGroup variant="outlined" size="small">
             <Button startIcon={<BarChartIcon />}>Chart View</Button>
             <Button startIcon={<DownloadIcon />}>Export</Button>
             <Button startIcon={<FilterIcon />}>Filter</Button>
-          </ButtonGroup>
+          </ButtonGroup> */}
         </Stack>
 
         <Grid container spacing={3}>
@@ -656,53 +656,6 @@ const ProfessionalHRDashboard: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
-
-      {/* Professional Quick Actions */}
-      <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
-        <Typography variant="h5" fontWeight={600} gutterBottom>
-          ⚡ HR Quick Actions
-        </Typography>
-        <Grid container spacing={2}>
-          {[
-            { icon: PeopleIcon, label: 'Employee Management', path: '/hr/employees', color: '#4f46e5' },
-            { icon: EventNoteIcon, label: 'Leave Management', path: '/leaves', color: '#059669' },
-            { icon: PaymentIcon, label: 'Payroll Processing', path: '/payroll', color: '#dc2626' },
-            { icon: ReportIcon, label: 'HR Analytics', path: '/analytics', color: '#7c2d12' },
-            { icon: RecruitmentIcon, label: 'Recruitment', path: '/recruitment', color: '#1565c0' },
-            { icon: TrainingIcon, label: 'Training & Development', path: '/training', color: '#6a1b9a' },
-            { icon: NotificationsIcon, label: 'Policies & Compliance', path: '/policies', color: '#ef6c00' },
-            { icon: SecurityIcon, label: 'Security & Access', path: '/security', color: '#d32f2f' },
-          ].map((action, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
-              <Zoom in timeout={200 + index * 100}>
-                <Button
-                  variant="outlined"
-                  fullWidth
-                  size="large"
-                  startIcon={<action.icon />}
-                  onClick={() => navigate(action.path)}
-                  sx={{
-                    py: 2,
-                    borderRadius: 3,
-                    textTransform: 'none',
-                    borderColor: alpha(action.color, 0.3),
-                    color: action.color,
-                    backgroundColor: alpha(action.color, 0.05),
-                    '&:hover': {
-                      borderColor: action.color,
-                      backgroundColor: alpha(action.color, 0.1),
-                      transform: 'translateY(-2px)',
-                    },
-                    transition: 'all 0.2s ease-in-out',
-                  }}
-                >
-                  {action.label}
-                </Button>
-              </Zoom>
-            </Grid>
-          ))}
-        </Grid>
-      </Paper>
     </Box>
   );
 };

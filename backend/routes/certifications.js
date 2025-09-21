@@ -95,6 +95,74 @@ router.post('/upload', auth, upload.single('certificateFile'), async (req, res) 
   }
 });
 
+// @route   POST /api/certifications
+// @desc    Add a new certification (without file upload)
+// @access  Private (Employee only)
+router.post('/', auth, async (req, res) => {
+  try {
+    const {
+      name,
+      issuingOrganization,
+      issueDate,
+      expirationDate,
+      credentialId,
+      credentialUrl,
+      category,
+      skillLevel,
+      skills,
+      verified
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !issuingOrganization || !issueDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, issuing organization, and issue date are required'
+      });
+    }
+
+    const certificationData = {
+      employeeId: req.user._id,
+      name,
+      issuingOrganization,
+      issueDate: new Date(issueDate),
+      category: category || 'Technical',
+      skillLevel: skillLevel || 'Intermediate',
+      status: 'Active',
+      verified: verified || false
+    };
+
+    if (expirationDate) certificationData.expiryDate = new Date(expirationDate);
+    if (credentialId) certificationData.credentialId = credentialId;
+    if (credentialUrl) certificationData.credentialUrl = credentialUrl;
+    if (skills) certificationData.skills = Array.isArray(skills) ? skills : skills.split(',').map(s => s.trim());
+
+    const certification = new Certification(certificationData);
+    
+    // Calculate salary impact
+    if (certification.calculateImpact) {
+      certification.calculateImpact();
+    }
+    
+    await certification.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Certification added successfully',
+      data: {
+        certification
+      }
+    });
+  } catch (error) {
+    console.error('Certification creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating certification',
+      error: error.message
+    });
+  }
+});
+
 // @route   GET /api/certifications/my
 // @desc    Get employee's certifications
 // @access  Private (Employee only)
@@ -232,6 +300,7 @@ router.delete('/:id', auth, async (req, res) => {
 router.get('/analytics', auth, async (req, res) => {
   try {
     const certifications = await Certification.find({ employeeId: req.user._id });
+    const currentUser = await User.findById(req.user._id);
     
     // Calculate certification score for salary prediction
     const certificationScore = {
@@ -240,11 +309,13 @@ router.get('/analytics', auth, async (req, res) => {
       technicalCertifications: certifications.filter(cert => cert.category === 'Technical').length,
       managementCertifications: certifications.filter(cert => cert.category === 'Management').length,
       recentCertifications: certifications.filter(cert => {
-        const twoYearsAgo = new Date();
-        twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-        return new Date(cert.issueDate) >= twoYearsAgo;
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+        return new Date(cert.issueDate) >= oneYearAgo;
       }).length,
-      skillsCount: [...new Set(certifications.flatMap(cert => cert.skills || []))].length
+      skillsCount: [...new Set(certifications.flatMap(cert => cert.skills || []))].length,
+      avgSalaryImpact: certifications.length > 0 ? 
+        certifications.reduce((sum, cert) => sum + (cert.salaryImpact || 0), 0) / certifications.length : 0
     };
 
     // Calculate overall certification value (0-100)
@@ -255,16 +326,102 @@ router.get('/analytics', auth, async (req, res) => {
     certificationValue += Math.min(certificationScore.managementCertifications * 8, 15); // Max 15 points
     certificationValue += Math.min(certificationScore.recentCertifications * 5, 10); // Max 10 points
 
+    // Category breakdown
+    const categoryBreakdown = certifications.reduce((acc, cert) => {
+      if (!acc[cert.category]) {
+        acc[cert.category] = { count: 0, totalImpact: 0, avgImpact: 0 };
+      }
+      acc[cert.category].count += 1;
+      acc[cert.category].totalImpact += cert.salaryImpact || 0;
+      acc[cert.category].avgImpact = acc[cert.category].totalImpact / acc[cert.category].count;
+      return acc;
+    }, {});
+
+    // Timeline data (last 2 years)
+    const timelineData = certifications
+      .filter(cert => {
+        const twoYearsAgo = new Date();
+        twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+        return new Date(cert.issueDate) >= twoYearsAgo;
+      })
+      .map(cert => ({
+        date: cert.issueDate,
+        name: cert.name,
+        category: cert.category,
+        impact: cert.salaryImpact || 0,
+        verified: cert.verified || false
+      }))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // Generate recommendations
+    const recommendations = [];
+    
+    if (certificationScore.verifiedCertifications < 2) {
+      recommendations.push({
+        type: 'verification',
+        title: 'Get Certifications Verified',
+        description: 'Verified certifications have 40% higher salary impact',
+        impact: '+2-5% salary increase per verification',
+        priority: 'high'
+      });
+    }
+    
+    if (certificationScore.technicalCertifications < 3) {
+      recommendations.push({
+        type: 'technical',
+        title: 'Add Technical Certifications',
+        description: 'Technical skills are highly valued in current market',
+        impact: '+3-8% salary increase per certification',
+        priority: 'medium'
+      });
+    }
+    
+    if (certificationScore.managementCertifications === 0) {
+      recommendations.push({
+        type: 'management',
+        title: 'Leadership Certifications',
+        description: 'Management certifications unlock higher role opportunities',
+        impact: '+5-12% salary increase potential',
+        priority: 'medium'
+      });
+    }
+    
+    if (certificationScore.recentCertifications === 0) {
+      recommendations.push({
+        type: 'continuous_learning',
+        title: 'Continuous Learning',
+        description: 'Recent certifications show commitment to growth',
+        impact: '+2-4% bonus for recent learning',
+        priority: 'high'
+      });
+    }
+
+    // Salary impact projection
+    const currentSalary = currentUser?.jobDetails?.salary?.basic || 50000;
+    const totalImpact = certifications.reduce((sum, cert) => sum + (cert.salaryImpact || 0), 0);
+    const projectedSalary = currentSalary * (1 + Math.min(totalImpact, 30) / 100);
+
     res.json({
       success: true,
       data: {
         certificationScore,
         certificationValue: Math.round(certificationValue),
-        recommendations: [
-          certificationScore.verifiedCertifications < 2 ? "Get more certifications verified to increase salary potential" : null,
-          certificationScore.technicalCertifications < 3 ? "Consider adding more technical certifications" : null,
-          certificationScore.recentCertifications < 2 ? "Recent certifications show continuous learning" : null
-        ].filter(Boolean)
+        categoryBreakdown,
+        timelineData,
+        recommendations,
+        salaryProjection: {
+          current: currentSalary,
+          projected: Math.round(projectedSalary),
+          increase: Math.round(projectedSalary - currentSalary),
+          percentage: Math.round(Math.min(totalImpact, 30) * 10) / 10
+        },
+        insights: {
+          topCategory: Object.entries(categoryBreakdown).length > 0 ? 
+            Object.entries(categoryBreakdown).reduce((a, b) => a[1].count > b[1].count ? a : b)[0] : 'None',
+          mostImpactfulCert: certifications.length > 0 ? 
+            certifications.reduce((a, b) => (a.salaryImpact || 0) > (b.salaryImpact || 0) ? a : b) : null,
+          learningVelocity: Math.round((certificationScore.recentCertifications / Math.max(certificationScore.totalCertifications, 1)) * 100)
+        }
       }
     });
   } catch (error) {

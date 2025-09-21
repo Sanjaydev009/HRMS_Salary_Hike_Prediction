@@ -280,7 +280,12 @@ const ModernEmployeeManagement: React.FC = () => {
   };
 
   const handleEditEmployee = (employee: Employee) => {
-    navigate(`/employees/edit/${employee.id}`);
+    console.log('Edit Employee - Original data:', employee);
+    console.log('Opening ProfessionalEmployeeForm in edit mode with 8 steps');
+    // Employee data is already in the correct format from fetchEmployees
+    setSelectedEmployee(employee);
+    setFormMode('edit');
+    setEmployeeFormOpen(true);
     setAnchorEl(null);
   };
 

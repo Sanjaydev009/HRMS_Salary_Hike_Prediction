@@ -28,7 +28,8 @@ import {
   ListItemSecondaryAction,
   Tab,
   Tabs,
-  CircularProgress
+  CircularProgress,
+  LinearProgress
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -40,7 +41,11 @@ import {
   WorkspacePremium as WorkspacePremiumIcon,
   Visibility as VisibilityIcon,
   AttachFile as AttachFileIcon,
-  BarChart as BarChartIcon
+  BarChart as BarChartIcon,
+  Analytics as AnalyticsIcon,
+  Verified as VerifiedIcon,
+  Star as StarIcon,
+  Recommend as RecommendIcon
 } from '@mui/icons-material';
 
 interface Certification {
@@ -49,10 +54,14 @@ interface Certification {
   issuingOrganization: string;
   issueDate: string;
   expirationDate?: string;
+  expiryDate?: string;
   credentialId?: string;
   credentialUrl?: string;
   category: string;
   skillLevel: string;
+  verified?: boolean;
+  skills?: string[];
+  salaryImpact?: number;
   certificate?: {
     filename: string;
     originalName: string;
@@ -60,7 +69,6 @@ interface Certification {
   };
   status: string;
   impactScore: number;
-  salaryImpact: number;
   createdAt: string;
 }
 
@@ -110,6 +118,12 @@ const CertificationManager: React.FC = () => {
   });
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // Helper function for color generation
+  const getRandomColor = () => {
+    const colors = ['#1976d2', '#dc004e', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50', '#8bc34a', '#cddc39', '#ffeb3b', '#ffc107', '#ff9800', '#ff5722'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
   const [salaryPrediction, setSalaryPrediction] = useState<SalaryPrediction | null>(null);
   const [predictionLoading, setPredictionLoading] = useState(false);
 
@@ -620,12 +634,353 @@ const CertificationManager: React.FC = () => {
 
       {tabValue === 2 && (
         <Box>
-          <Typography variant="h6" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AnalyticsIcon />
             Certification Analytics
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Detailed analytics coming soon...
-          </Typography>
+          
+          {loading ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Grid container spacing={3}>
+              {/* Overview Cards */}
+              <Grid item xs={12} md={3}>
+                <Card>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <WorkspacePremiumIcon color="primary" />
+                      <Typography variant="h6">{certifications.length}</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Total Certifications
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              
+              <Grid item xs={12} md={3}>
+                <Card>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <VerifiedIcon color="success" />
+                      <Typography variant="h6">
+                        {certifications.filter(cert => cert.verified).length}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Verified Certifications
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              
+              <Grid item xs={12} md={3}>
+                <Card>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <TrendingUpIcon color="warning" />
+                      <Typography variant="h6">
+                        {certifications.filter(cert => {
+                          const oneYearAgo = new Date();
+                          oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                          return new Date(cert.issueDate) >= oneYearAgo;
+                        }).length}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Recent (Last Year)
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              
+              <Grid item xs={12} md={3}>
+                <Card>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <StarIcon color="error" />
+                      <Typography variant="h6">
+                        {[...new Set(certifications.flatMap(cert => cert.skills || []))].length}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Unique Skills
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Category Distribution Chart */}
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Certifications by Category
+                    </Typography>
+                    <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {(() => {
+                        const categories = certifications.reduce((acc: Record<string, number>, cert) => {
+                          acc[cert.category] = (acc[cert.category] || 0) + 1;
+                          return acc;
+                        }, {});
+                        
+                        const categoryData = Object.entries(categories).map(([name, value]) => ({
+                          name,
+                          value: value as number,
+                          color: getRandomColor()
+                        }));
+
+                        return categoryData.length > 0 ? (
+                          <Box sx={{ width: '100%' }}>
+                            {categoryData.map((item, index) => (
+                              <Box key={item.name} sx={{ mb: 2 }}>
+                                <Box display="flex" justifyContent="space-between" alignItems="center">
+                                  <Typography variant="body2">{item.name}</Typography>
+                                  <Typography variant="body2" fontWeight="bold">
+                                    {item.value} ({Math.round((item.value / certifications.length) * 100)}%)
+                                  </Typography>
+                                </Box>
+                                <LinearProgress 
+                                  variant="determinate" 
+                                  value={(item.value / certifications.length) * 100}
+                                  sx={{ 
+                                    height: 8, 
+                                    borderRadius: 4,
+                                    backgroundColor: '#f0f0f0',
+                                    '& .MuiLinearProgress-bar': {
+                                      backgroundColor: item.color
+                                    }
+                                  }}
+                                />
+                              </Box>
+                            ))}
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            No certification data available
+                          </Typography>
+                        );
+                      })()}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Salary Impact Analysis */}
+              <Grid item xs={12} md={6}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Salary Impact Analysis
+                    </Typography>
+                    <Box sx={{ p: 2 }}>
+                      {(() => {
+                        const totalImpact = certifications.reduce((sum, cert) => sum + (cert.salaryImpact || 0), 0);
+                        const avgImpact = certifications.length > 0 ? totalImpact / certifications.length : 0;
+                        
+                        return (
+                          <>
+                            <Box sx={{ mb: 3 }}>
+                              <Typography variant="body2" gutterBottom>
+                                Total Impact: <strong>{totalImpact.toFixed(1)}%</strong>
+                              </Typography>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={Math.min(totalImpact, 30) / 30 * 100}
+                                sx={{ height: 10, borderRadius: 5, backgroundColor: '#f0f0f0' }}
+                              />
+                              <Typography variant="caption" color="text.secondary">
+                                Maximum possible impact: 30%
+                              </Typography>
+                            </Box>
+                            
+                            <Box sx={{ mb: 3 }}>
+                              <Typography variant="body2" gutterBottom>
+                                Average per Certification: <strong>{avgImpact.toFixed(1)}%</strong>
+                              </Typography>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={Math.min(avgImpact, 10) / 10 * 100}
+                                color="secondary"
+                                sx={{ height: 8, borderRadius: 4 }}
+                              />
+                            </Box>
+
+                            {/* Top Impact Certifications */}
+                            <Typography variant="subtitle2" gutterBottom>
+                              Top Impact Certifications:
+                            </Typography>
+                            {certifications
+                              .sort((a, b) => (b.salaryImpact || 0) - (a.salaryImpact || 0))
+                              .slice(0, 3)
+                              .map((cert, index) => (
+                                <Box key={cert._id} sx={{ mb: 1 }}>
+                                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                                    <Typography variant="body2" sx={{ maxWidth: '70%' }}>
+                                      {index + 1}. {cert.name}
+                                    </Typography>
+                                    <Typography variant="body2" fontWeight="bold" color="primary">
+                                      +{(cert.salaryImpact || 0).toFixed(1)}%
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                              ))}
+                          </>
+                        );
+                      })()}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Skills Timeline */}
+              <Grid item xs={12}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Certification Timeline
+                    </Typography>
+                    <Box sx={{ height: 200, overflow: 'auto' }}>
+                      {certifications
+                        .sort((a, b) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime())
+                        .map((cert, index) => (
+                          <Box key={cert._id} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                            <Box display="flex" justifyContent="space-between" alignItems="start">
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="body1" fontWeight="bold">
+                                  {cert.name}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {cert.issuingOrganization} • {cert.category}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Issued: {new Date(cert.issueDate).toLocaleDateString()}
+                                  {cert.expiryDate && ` • Expires: ${new Date(cert.expiryDate).toLocaleDateString()}`}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ textAlign: 'right' }}>
+                                <Chip 
+                                  size="small"
+                                  label={cert.verified ? 'Verified' : 'Unverified'} 
+                                  color={cert.verified ? 'success' : 'default'}
+                                  sx={{ mb: 1 }}
+                                />
+                                <Typography variant="body2" fontWeight="bold">
+                                  +{(cert.salaryImpact || 0).toFixed(1)}%
+                                </Typography>
+                              </Box>
+                            </Box>
+                            {cert.skills && cert.skills.length > 0 && (
+                              <Box sx={{ mt: 1 }}>
+                                {cert.skills.map((skill, skillIndex) => (
+                                  <Chip 
+                                    key={skillIndex}
+                                    label={skill} 
+                                    size="small" 
+                                    variant="outlined" 
+                                    sx={{ mr: 1, mb: 1 }}
+                                  />
+                                ))}
+                              </Box>
+                            )}
+                          </Box>
+                        ))}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Recommendations */}
+              <Grid item xs={12}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <RecommendIcon />
+                      Recommendations for Salary Growth
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {(() => {
+                        const recommendations = [];
+                        const verifiedCount = certifications.filter(cert => cert.verified).length;
+                        const recentCount = certifications.filter(cert => {
+                          const oneYearAgo = new Date();
+                          oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                          return new Date(cert.issueDate) >= oneYearAgo;
+                        }).length;
+                        const techCount = certifications.filter(cert => cert.category === 'Technical').length;
+                        const mgmtCount = certifications.filter(cert => cert.category === 'Management').length;
+
+                        if (verifiedCount < 2) {
+                          recommendations.push({
+                            icon: '✅',
+                            title: 'Get Certifications Verified',
+                            description: 'Verified certifications have higher salary impact. Upload certificates for verification.',
+                            impact: '+2-5% salary increase per verification'
+                          });
+                        }
+
+                        if (techCount < 3) {
+                          recommendations.push({
+                            icon: '💻',
+                            title: 'Add Technical Certifications',
+                            description: 'Technical skills are highly valued. Consider cloud, programming, or data certifications.',
+                            impact: '+3-8% salary increase per certification'
+                          });
+                        }
+
+                        if (mgmtCount === 0) {
+                          recommendations.push({
+                            icon: '👔',
+                            title: 'Leadership Certifications',
+                            description: 'Management certifications open doors to higher roles and better compensation.',
+                            impact: '+5-12% salary increase potential'
+                          });
+                        }
+
+                        if (recentCount === 0) {
+                          recommendations.push({
+                            icon: '📚',
+                            title: 'Continuous Learning',
+                            description: 'Recent certifications show commitment to growth and staying current.',
+                            impact: '+2-4% bonus for recent learning'
+                          });
+                        }
+
+                        if (certifications.length < 5) {
+                          recommendations.push({
+                            icon: '🎯',
+                            title: 'Build Certification Portfolio',
+                            description: 'Aim for 5+ certifications across different skill areas for maximum impact.',
+                            impact: '+15-25% total salary potential'
+                          });
+                        }
+
+                        return recommendations.slice(0, 4).map((rec, index) => (
+                          <Grid item xs={12} md={6} key={index}>
+                            <Alert severity="info" sx={{ height: '100%' }}>
+                              <Box>
+                                <Typography variant="body1" fontWeight="bold" sx={{ mb: 1 }}>
+                                  {rec.icon} {rec.title}
+                                </Typography>
+                                <Typography variant="body2" sx={{ mb: 1 }}>
+                                  {rec.description}
+                                </Typography>
+                                <Typography variant="caption" color="primary" fontWeight="bold">
+                                  💰 {rec.impact}
+                                </Typography>
+                              </Box>
+                            </Alert>
+                          </Grid>
+                        ));
+                      })()}
+                    </Grid>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          )}
         </Box>
       )}
 
