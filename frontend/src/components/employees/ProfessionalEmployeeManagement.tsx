@@ -265,6 +265,7 @@ const ProfessionalEmployeeManagement: React.FC = () => {
 
   // Validation functions
   const validateStep = (step: number): boolean => {
+    console.log('validateStep called for step:', step);
     const errors: {[key: string]: string} = {};
     
     switch (step) {
@@ -300,16 +301,31 @@ const ProfessionalEmployeeManagement: React.FC = () => {
       case 2: // Additional Details
         // Optional validations for emergency contact
         break;
+        
+      case 3: // Review & Save
+        // No additional validation needed for review step
+        break;
     }
     
+    console.log('Validation errors for step', step, ':', errors);
     setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    const isValid = Object.keys(errors).length === 0;
+    console.log('Step', step, 'validation result:', isValid);
+    return isValid;
   };
 
   // Step navigation
   const handleNext = () => {
-    if (validateStep(activeStep)) {
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    console.log('handleNext called - Current step:', activeStep, 'Total steps:', steps.length);
+    const isValid = validateStep(activeStep);
+    console.log('Step validation result:', isValid);
+    
+    if (isValid) {
+      const nextStep = activeStep + 1;
+      console.log('Moving to next step:', nextStep);
+      setActiveStep(nextStep);
+    } else {
+      console.log('Validation failed, staying on current step');
     }
   };
 
@@ -774,7 +790,13 @@ const ProfessionalEmployeeManagement: React.FC = () => {
                 label="Address"
                 multiline
                 rows={3}
-                value={formData.profile?.address || ''}
+                value={
+                  typeof formData.profile?.address === 'string' 
+                    ? formData.profile.address 
+                    : formData.profile?.address 
+                      ? `${formData.profile.address.street || ''}, ${formData.profile.address.city || ''}, ${formData.profile.address.state || ''} ${formData.profile.address.zipCode || ''}, ${formData.profile.address.country || ''}`.trim().replace(/^,\s*|,\s*$/g, '')
+                      : ''
+                }
                 onChange={(e) => setFormData({ 
                   ...formData, 
                   profile: { ...formData.profile, address: e.target.value } as any
@@ -967,7 +989,13 @@ const ProfessionalEmployeeManagement: React.FC = () => {
                       <ListItemIcon><HomeIcon color="success" /></ListItemIcon>
                       <ListItemText 
                         primary="Address" 
-                        secondary={formData.profile?.address || 'Not provided'}
+                        secondary={
+                          typeof formData.profile?.address === 'string' 
+                            ? formData.profile.address 
+                            : formData.profile?.address 
+                              ? `${formData.profile.address.street || ''}, ${formData.profile.address.city || ''}, ${formData.profile.address.state || ''} ${formData.profile.address.zipCode || ''}, ${formData.profile.address.country || ''}`.trim().replace(/^,\s*|,\s*$/g, '')
+                              : 'Not provided'
+                        }
                       />
                     </ListItem>
                     <ListItem>

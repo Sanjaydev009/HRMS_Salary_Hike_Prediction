@@ -202,11 +202,6 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
             icon: <PaymentIcon />,
             path: '/payroll',
           },
-          // {
-          //   text: 'Certifications',
-          //   icon: <School />,
-          //   path: '/certifications',
-          // },
           {
             text: 'Analytics',
             icon: <AnalyticsIcon />,
@@ -223,44 +218,45 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
             path: '/dashboard',
           },
           {
-            text: 'Today\'s Attendance',
-            icon: <Schedule />,
-            path: '/employee/today-attendance',
-          },
-          {
             text: 'My Profile',
             icon: <PersonIcon />,
             path: '/employee/profile',
+          },
+          {
+            text: 'Today\'s Attendance',
+            icon: <Schedule />,
+            path: '/employee/today-attendance',
           },
           {
             text: 'Certifications & Skills',
             icon: <School />,
             path: '/employee/my-certifications',
           },
+
           {
-            text: 'Leave Balance',
+            text: 'Leave Management',
             icon: <EventNoteIcon />,
-            path: '/employee/my-leave-balance',
+            children: [
+              { text: 'Apply Leave', icon: <EventNoteIcon />, path: '/employee/leave/apply' },
+              { text: 'My Leaves', icon: <EventNoteIcon />, path: '/employee/leaves' },
+              { text: 'Leave Balance', icon: <EventNoteIcon />, path: '/employee/my-leave-balance' },
+            ],
           },
+          
           {
-            text: 'Apply Leave',
-            icon: <EventNoteIcon />,
-            path: '/employee/leave/apply',
+            text: 'Payroll',
+            icon: <PaymentIcon />,
+            path: '/employee/payroll',
           },
-          {
-            text: 'My Leaves',
-            icon: <EventNoteIcon />,
-            path: '/employee/leaves',
+                  {
+            text: 'Salary Prediction',
+            icon: <MonetizationOn />,
+            path: '/salary-prediction',
           },
           {
             text: 'Quick Actions',
             icon: <TrendingUp />,
             path: '/employee/quick-actions',
-          },
-          {
-            text: 'Payroll',
-            icon: <PaymentIcon />,
-            path: '/employee/payroll',
           },
         ];
     }
@@ -717,81 +713,6 @@ const RoleBasedLayout: React.FC<RoleBasedLayoutProps> = ({ children }) => {
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 View and edit personal information
-              </Typography>
-            </Box>
-          </MenuItem>
-
-          <MenuItem 
-            onClick={() => { navigate('/employee/my-certifications'); handleProfileMenuClose(); }}
-            sx={{ 
-              px: 3, 
-              py: 1.5,
-              '&:hover': { 
-                bgcolor: 'secondary.50',
-                '& .MuiListItemIcon-root': { color: 'secondary.main' },
-                '& .MuiTypography-root': { color: 'secondary.main' }
-              }
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>
-              <School fontSize="small" />
-            </ListItemIcon>
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                Certifications
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Manage your skills and certificates
-              </Typography>
-            </Box>
-          </MenuItem>
-
-          <MenuItem 
-            onClick={() => { navigate('/employee/payroll'); handleProfileMenuClose(); }}
-            sx={{ 
-              px: 3, 
-              py: 1.5,
-              '&:hover': { 
-                bgcolor: 'success.50',
-                '& .MuiListItemIcon-root': { color: 'success.main' },
-                '& .MuiTypography-root': { color: 'success.main' }
-              }
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>
-              <PaymentIcon fontSize="small" />
-            </ListItemIcon>
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                Payroll & Salary
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                View payslips and salary details
-              </Typography>
-            </Box>
-          </MenuItem>
-
-          <MenuItem 
-            onClick={() => { navigate('/employee/leaves'); handleProfileMenuClose(); }}
-            sx={{ 
-              px: 3, 
-              py: 1.5,
-              '&:hover': { 
-                bgcolor: 'info.50',
-                '& .MuiListItemIcon-root': { color: 'info.main' },
-                '& .MuiTypography-root': { color: 'info.main' }
-              }
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 40 }}>
-              <EventNoteIcon fontSize="small" />
-            </ListItemIcon>
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                Leave Management
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Apply and track leave requests
               </Typography>
             </Box>
           </MenuItem>

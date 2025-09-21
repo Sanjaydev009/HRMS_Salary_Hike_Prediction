@@ -484,7 +484,7 @@ router.post('/', async (req, res) => {
 // @route   PUT /api/employees/:id
 // @desc    Update employee
 // @access  Private (HR/Admin or self for limited fields)
-router.put('/:id', async (req, res) => {
+router.put('/:id', auth, async (req, res) => {
   try {
     const employee = await User.findById(req.params.id);
 

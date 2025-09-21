@@ -18,7 +18,7 @@ export default defineConfig({
         secure: false,
       },
       '/ml': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8001',
         changeOrigin: true,
         secure: false,
       },

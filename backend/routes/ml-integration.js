@@ -139,21 +139,26 @@ router.get('/predict/:employeeId', auth, async (req, res) => {
     // Calculate certification metrics
     const certificationMetrics = calculateCertificationMetrics(certifications);
 
-    // Prepare prediction request
+    // Calculate real experience in organization
+    const joiningDate = employee.jobDetails?.joiningDate || employee.createdAt;
+    const experienceInOrg = joiningDate ? 
+      Math.max(0, (new Date() - new Date(joiningDate)) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
+
+    // Prepare prediction request with real-time data
     const predictionData = {
       employee_data: {
-        department: employee.department || 'Unknown',
-        designation: employee.designation || 'Unknown',
-        experience_years: employee.experience || 0,
-        performance_rating: employee.performanceRating || 3.5,
-        education_level: employee.education || 'Bachelor',
-        location: employee.location || 'Office',
-        current_salary: employee.salary || 50000,
+        department: employee.jobDetails?.department || 'Unknown',
+        designation: employee.jobDetails?.designation || 'Unknown', 
+        experience_years: experienceInOrg, // Real experience in organization
+        performance_rating: employee.profile?.performanceRating || 3.5,
+        education_level: employee.profile?.education || 'Bachelor',
+        location: employee.jobDetails?.workLocation || 'Office',
+        current_salary: employee.jobDetails?.salary?.basic || 50000, // Fixed: use correct salary path
         attendance_metrics: attendanceMetrics,
         certification_data: certificationMetrics,
-        project_completion_rate: employee.projectCompletionRate || 85,
-        team_size_managed: employee.teamSize || 0,
-        revenue_generated: employee.revenueGenerated || 0
+        project_completion_rate: employee.profile?.projectCompletionRate || 85,
+        team_size_managed: employee.profile?.teamSize || 0,
+        revenue_generated: employee.profile?.revenueGenerated || 0
       }
     };
 
@@ -299,42 +304,87 @@ router.post('/batch-predict', auth, async (req, res) => {
 function calculateAttendanceMetrics(attendanceRecords) {
   if (!attendanceRecords || attendanceRecords.length === 0) {
     return {
-      attendance_rate: 80.0,
-      average_hours_per_day: 8.0,
-      punctuality_score: 85.0,
-      remote_work_percentage: 25.0,
-      overtime_hours_monthly: 10.0,
-      consistency_score: 75.0
+      attendance_rate: 0.0,               // No records = 0% attendance
+      average_hours_per_day: 0.0,         // No records = 0 hours
+      punctuality_score: 0.0,             // No records = 0% punctuality
+      remote_work_percentage: 0.0,        // No records = 0% remote
+      overtime_hours_monthly: 0.0,        // No records = 0 overtime
+      consistency_score: 0.0,             // No records = 0% consistency
+      total_working_days: 0,              // No working days
+      days_with_9plus_hours: 0,           // Days with 9+ hours
+      nine_hour_compliance_rate: 0.0      // Compliance with 9-hour requirement
     };
   }
 
   const totalDays = attendanceRecords.length;
-  const presentDays = attendanceRecords.filter(r => r.status === 'Present').length;
+  const presentDays = attendanceRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
   const lateDays = attendanceRecords.filter(r => r.status === 'Late').length;
   const remoteDays = attendanceRecords.filter(r => r.location === 'Remote').length;
   
-  const totalHours = attendanceRecords.reduce((sum, r) => sum + (r.totalHours || 8), 0);
-  const overtimeHours = attendanceRecords.reduce((sum, r) => sum + Math.max(0, (r.totalHours || 8) - 8), 0);
+  // Calculate hours-based metrics
+  const totalHours = attendanceRecords.reduce((sum, r) => {
+    // Use totalHours if available, otherwise calculate from checkIn/checkOut
+    if (r.totalHours) return sum + r.totalHours;
+    if (r.checkIn && r.checkOut) {
+      const checkIn = new Date(r.checkIn);
+      const checkOut = new Date(r.checkOut);
+      const hoursWorked = (checkOut - checkIn) / (1000 * 60 * 60); // Convert to hours
+      return sum + Math.max(0, hoursWorked);
+    }
+    return sum + 8; // Default 8 hours if no data
+  }, 0);
   
+  // Count days with 9+ hours (CRITICAL for hike eligibility)
+  const daysWithNinePlusHours = attendanceRecords.filter(r => {
+    if (r.totalHours) return r.totalHours >= 9;
+    if (r.checkIn && r.checkOut) {
+      const checkIn = new Date(r.checkIn);
+      const checkOut = new Date(r.checkOut);
+      const hoursWorked = (checkOut - checkIn) / (1000 * 60 * 60);
+      return hoursWorked >= 9;
+    }
+    return false; // If no proper data, assume < 9 hours
+  }).length;
+  
+  const overtimeHours = attendanceRecords.reduce((sum, r) => {
+    const dailyHours = r.totalHours || 8;
+    return sum + Math.max(0, dailyHours - 8);
+  }, 0);
+  
+  // Calculate key metrics
   const attendanceRate = (presentDays / totalDays) * 100;
   const avgHours = totalHours / totalDays;
   const punctualityScore = ((totalDays - lateDays) / totalDays) * 100;
   const remotePercentage = (remoteDays / totalDays) * 100;
-  const monthlyOvertime = (overtimeHours / totalDays) * 30;
+  const monthlyOvertime = (overtimeHours / totalDays) * 30; // Project to monthly
+  const nineHourComplianceRate = (daysWithNinePlusHours / presentDays) * 100; // % of present days with 9+ hours
   
-  // Calculate consistency
+  // Calculate consistency score
   const hoursList = attendanceRecords.map(r => r.totalHours || 8);
   const hoursVariance = hoursList.length > 1 ? calculateVariance(hoursList) : 0;
   const consistencyScore = Math.max(0, 100 - (hoursVariance * 10));
 
-  return {
+  const metrics = {
     attendance_rate: Math.min(100, Math.max(0, attendanceRate)),
     average_hours_per_day: Math.max(0, avgHours),
     punctuality_score: Math.min(100, Math.max(0, punctualityScore)),
     remote_work_percentage: Math.min(100, Math.max(0, remotePercentage)),
     overtime_hours_monthly: Math.max(0, monthlyOvertime),
-    consistency_score: Math.min(100, Math.max(0, consistencyScore))
+    consistency_score: Math.min(100, Math.max(0, consistencyScore)),
+    total_working_days: presentDays,
+    days_with_9plus_hours: daysWithNinePlusHours,
+    nine_hour_compliance_rate: Math.min(100, Math.max(0, nineHourComplianceRate))
   };
+
+  console.log('📊 ATTENDANCE METRICS CALCULATED:');
+  console.log(`   📅 Total Days: ${totalDays}`);
+  console.log(`   ✅ Present Days: ${presentDays}`);
+  console.log(`   📈 Attendance Rate: ${metrics.attendance_rate.toFixed(1)}%`);
+  console.log(`   ⏰ Avg Hours/Day: ${metrics.average_hours_per_day.toFixed(1)}`);
+  console.log(`   🎯 Days with 9+ Hours: ${daysWithNinePlusHours}/${presentDays}`);
+  console.log(`   📊 9-Hour Compliance: ${metrics.nine_hour_compliance_rate.toFixed(1)}%`);
+
+  return metrics;
 }
 
 function calculateCertificationMetrics(certifications) {
